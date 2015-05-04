@@ -27,29 +27,32 @@ public class TrialNode {
 	
 	private boolean[] TestedChildren; //This keeps track of which child nodes we've tried.
 	
-	// The actual control delays are static and immutable.
-	public static final int[] ActionList1 = {0,5,10,15,20,25,30};
-	public static final int[] ActionList2 = {25,30,35,40,45,50,55,60,65};
 	
-	
+	//Action list order and actions.
+	// for 1st depth, will pick one of 1st set of actions, etc.
+	// for trees greater depth than number of arrays below, it will back to the top.
+	public static final int[][] ActionList = {
+			{0},
+			{21,22,23,24,25,26,27},
+			{11,12,13,14,15,16,17,18},
+			{48,49,50,51,52,53,54},
+			{21,22,23,24,25,26,27},
+			{61,62,63,64,65,66,67,68},
+			{0,1,2,3},
+			{61,62,63,64,65,66,67,68}
+			};
+
 	public TrialNode(TrialNode ParentAction, int ControlIndex) {
 		this.ParentNode = ParentAction;
-		NodeSequence = (ParentAction.NodeSequence%2) + 1; // If parent is 1, make this one 2 and vice versa.
-		
+
 		TreeDepth = ParentAction.TreeDepth + 1; // When we make nodes, we go down the tree.
 		this.ControlIndex = ControlIndex;
 		
+		NodeSequence = (ParentAction.NodeSequence%ActionList.length) + 1;
+		int NodeSequenceNext = ((ParentAction.NodeSequence + 1)%ActionList.length) + 1; //next action might wrap around.
 		
-		//This makes sure that the list of tested nodes is set to the correct length based on whether this node is even or odd.
-		if (NodeSequence == 1){
-			TestedChildren = new boolean[ActionList2.length]; //children belong to 2.
-			ControlAction = ActionList1[ControlIndex]; //This object belongs to 1.
-		}else if (NodeSequence == 2){
-			TestedChildren = new boolean[ActionList1.length];
-			ControlAction = ActionList2[ControlIndex]; //This object belongs to 1.
-		}else{
-			throw new RuntimeException("Node sequence assignments in error");
-		}
+		ControlAction = ActionList[NodeSequence-1][ControlIndex];
+		TestedChildren = new boolean[ActionList[NodeSequenceNext-1].length]; //children belong to 2.
 		Arrays.fill(TestedChildren, false);
 		
 	}
@@ -58,8 +61,8 @@ public class TrialNode {
 		System.out.println("Root node made. This message should only show once.");
 		ParentNode = null;
 		ControlIndex = -1; // This is just to make sure that this index never gets used if this is the root node.
-		NodeSequence = 2; //The root node is treated as even just to make sure later nodes work right.
-		TestedChildren = new boolean[ActionList1.length];
+		NodeSequence = 0; //The root node is treated as even just to make sure later nodes work right.
+		TestedChildren = new boolean[ActionList[0].length];
 		Arrays.fill(TestedChildren, false);
 		ControlAction = -1;
 		TreeDepth = 0;
@@ -77,7 +80,6 @@ public class TrialNode {
 				//Create the new object.
 				newNode = new TrialNode(this,i);
 				ChildNodes.add(newNode);
-//				System.out.println(TreeDepth + "," + i);
 				break;
 			}
 		}
@@ -122,11 +124,8 @@ public class TrialNode {
 		this.FullyExplored = FullyExplored;
 		
 		if (FullyExplored && TreeDepth>0){
-//			System.out.println(this.TreeDepth + "th level branch over, going up");
 			ParentNode.CheckExplored(); //If this one is fully explored, we should also check its parent.
 		}
-
-//		System.out.println(FullyExplored);
 		return FullyExplored;
 	}
 	
@@ -135,5 +134,4 @@ public class TrialNode {
 		rawScore = score;
 		diffScore = rawScore - ParentNode.rawScore;
 	}
-
 }

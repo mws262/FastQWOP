@@ -20,8 +20,10 @@ public class QWOPInterface {
 	private final int veliterations = 1;
 	private final int delaymillis = (int)(timestep*1000);
 	
-	private int[] currentSequence = new int[50]; //Arbitrarily larger than needed.
+	private int[] currentSequence = new int[500]; //Arbitrarily larger than needed.
 	private int currentIndex = 0; //counts number of actions taken in this run.
+	
+	public int actionsDone = 0; //Always counts up until a game reset. Helps ensure we know when we're doing something periodic.
 	
 	public boolean repeatSequence = true;
 	public int prefixLength = 4; //How many elements lead up to the repeated portion.
@@ -38,6 +40,7 @@ public class QWOPInterface {
 		sequencePosition = 1; //Reset to the beginning of the predefined sequence of actions.
 		currentIndex = 0;
 		Arrays.fill(currentSequence, 0);
+		actionsDone = 0;
 	}
 
 	/* Cost function */
@@ -64,10 +67,11 @@ public class QWOPInterface {
 	private void DoPeriodic() throws InterruptedException{
 		boolean fallen = false;
 		int[] subsequence = new int[periodicLength];
-		subsequence = Arrays.copyOfRange(currentSequence, prefixLength, periodicLength+prefixLength-1);
-		
+		subsequence = Arrays.copyOfRange(currentSequence, prefixLength-1, periodicLength+prefixLength-1);
+//		System.out.println(subsequence.length);
 		while(!fallen){
 			DoSequence(subsequence);
+			fallen = CheckFailure();
 		}
 		
 	}
@@ -111,14 +115,20 @@ public class QWOPInterface {
 		//Increment us to the next action in the sequence:
 		sequencePosition = (sequencePosition)%4 + 1;
 		
-		currentSequence[currentIndex] = delay; //Keep track of the sequence we're doing this run.
-		
-		if(currentIndex == periodicLength + prefixLength){
+		if (currentIndex < 500 ){
+			currentSequence[currentIndex] = delay; //Keep track of the sequence we're doing this run.
+		}else{
+			for (int i = 0; i<50; i++){
+				System.out.println(currentSequence[i] + ",");
+			}
+			System.out.println(currentSequence[50]);
+		}
+		currentIndex++;
+
+		if((currentIndex == periodicLength + prefixLength)){
 			DoPeriodic();
 		}
-		
-		currentIndex++;
-		
+
 		return Cost(); //Return the cost associated with the new position.
 	}
 }

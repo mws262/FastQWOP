@@ -7,6 +7,8 @@ public class ExhaustiveQwop {
 
 	public static boolean verbose = true;
 	
+	public static boolean goPeriodic = false;
+	
 	private static TrialNode RootNode;
 	private static int depth = 8;
 	
@@ -29,12 +31,15 @@ public class ExhaustiveQwop {
 		TrialNode NextNode;
 		float currentRecord = 0;
 		
-		int searchspace = (int)(Math.pow((double)TrialNode.ActionList1.length, Math.ceil((double)depth/2.))*Math.pow((double)TrialNode.ActionList2.length, Math.floor((double)depth/2.)));
+		
+		int searchspace = 1;
+		for (int i = 0; i<depth; i++){
+			searchspace *= TrialNode.ActionList[i%(TrialNode.ActionList.length-1)].length;
+		}
 		System.out.println("This will take a max of " + searchspace + "  evaluations assuming no failures.");
 
-		int verboseIncrement = 100;
+		int verboseIncrement = 1000;
 		
-		//I guess I'm doing breadth first before I figure out depth first.
 //		TrialNode newNode = RootNode.SampleNew();
 		CurrentNode = RootNode;
 		int counter = 0;
@@ -90,7 +95,6 @@ public class ExhaustiveQwop {
 					    	System.out.print(bufferNew[ct] + ", ");
 					    	ct++;
 					    }
-//					    System.out.print("[[[[[" + ct + "." + oldActions.length+"[[[[[");
 					    System.out.println(NextNode.EchoControl() + ".");
 					}
 				}
@@ -103,7 +107,6 @@ public class ExhaustiveQwop {
 			failed = NextNode.TreeDepth==depth; //We auto "fail" if we try to expand the tree beyond the specified depth. This is probably inefficient, since we knowthis failure without going through all the steps.
 			// We also fail based on the dude's state:
 			failed = failed || QWOPHandler.CheckFailure();
-			
 			/* Handle Failure or move down the tree if successful */
 			
 			if (failed){ //If we fall, then remove this new node and check to see if we've completed any trees.
@@ -111,11 +114,11 @@ public class ExhaustiveQwop {
 				
 				//For diagnostics, keep track of how many potential path have been eliminated by failures.
 				if (verbose){ //Don't bother unless we're spitting out this diagnostic info.
-					if (NextNode.TreeDepth%2 == 0){ //Bad node is even, hence the first one after would have been odd.
-						searchspace -= Math.pow(TrialNode.ActionList1.length,Math.ceil((depth-NextNode.TreeDepth)/2.))*Math.pow(TrialNode.ActionList2.length,Math.floor((depth-NextNode.TreeDepth)/2.))-1;
-					}else{ //bad node was odd. It's next action would have been from the even set.
-						searchspace -= Math.pow(TrialNode.ActionList2.length,Math.ceil((depth-NextNode.TreeDepth)/2.))*Math.pow(TrialNode.ActionList1.length,Math.floor((depth-NextNode.TreeDepth)/2.))-1;		
+					int removedsearchspace = 1;
+					for (int i = NextNode.TreeDepth; i<depth; i++){
+						removedsearchspace *= TrialNode.ActionList[i%(TrialNode.ActionList.length-1)].length;
 					}
+					searchspace -= (removedsearchspace-1); //keep an extra one for the node we're at.
 				}
 				
 				Arrays.fill(bufferNew, -1); //We failed, so clear out the buffer of new good actions.
@@ -150,6 +153,6 @@ public class ExhaustiveQwop {
 		}
 		//Final info on iterations.
 		String report = "Final iterations: " + counter;
-		if (verbose) report += ". Search space reduced to: " + searchspace;
+		if (verbose) report += ". Search space reduced to: " + searchspace; System.out.println(report);
 	}
 }
