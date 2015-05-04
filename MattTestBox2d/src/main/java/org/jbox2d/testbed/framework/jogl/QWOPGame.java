@@ -195,7 +195,7 @@ import org.jbox2d.dynamics.World;
 import org.jbox2d.dynamics.joints.*;
 //import org.jbox2d.testbed.framework.TestbedTest;
 
-public class QWOPNEW2 extends JFrame{
+public class QWOPGame extends JFrame{
 
   /* World object */
   public World m_world;
@@ -245,7 +245,7 @@ public class QWOPNEW2 extends JFrame{
   
   OptionsHolder options = new OptionsHolder();
   
-  public QWOPNEW2(){
+  public QWOPGame(){
 	  
   }
 

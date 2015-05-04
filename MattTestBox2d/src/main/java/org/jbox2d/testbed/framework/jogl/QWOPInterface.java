@@ -9,7 +9,7 @@ import org.jbox2d.dynamics.World;
 public class QWOPInterface {
 
 	private World m_world;
-	private QWOPNEW2 game;
+	private QWOPGame game;
 	
 	public boolean runRealtime = false;
 	//Accounting for a single run:
@@ -30,7 +30,7 @@ public class QWOPInterface {
 	public int periodicLength = 4; // How many elements are the repeated portion.
 	
 	public QWOPInterface() {
-		game = new QWOPNEW2();
+		game = new QWOPGame();
 	}
 	
 	/* Make a new game */
