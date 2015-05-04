@@ -1,5 +1,3 @@
-
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
@@ -31,16 +29,7 @@ public class TrialNode {
 	//Action list order and actions.
 	// for 1st depth, will pick one of 1st set of actions, etc.
 	// for trees greater depth than number of arrays below, it will back to the top.
-	public static final int[][] ActionList = {
-			{0},
-			{21,22,23,24,25,26,27},
-			{11,12,13,14,15,16,17,18},
-			{48,49,50,51,52,53,54},
-			{21,22,23,24,25,26,27},
-			{61,62,63,64,65,66,67,68},
-			{0,1,2,3},
-			{61,62,63,64,65,66,67,68}
-			};
+	public static final int[][] ActionList = OptionsHolder.ActionList;
 
 	public TrialNode(TrialNode ParentAction, int ControlIndex) {
 		this.ParentNode = ParentAction;

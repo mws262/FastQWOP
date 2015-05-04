@@ -15,12 +15,12 @@ public class QWOPInterface {
 	//Accounting for a single run:
 	int sequencePosition = 1; //Start with action 1, increment..
 	
-	public final float timestep = 0.04f;
-	private final int positerations = 5;
-	private final int veliterations = 1;
+	public final float timestep = OptionsHolder.timestep;
+	private final int positerations = OptionsHolder.positerations;
+	private final int veliterations = OptionsHolder.veliterations;
 	private final int delaymillis = (int)(timestep*1000);
 	
-	private int[] currentSequence = new int[500]; //Arbitrarily larger than needed.
+	private int[] currentSequence = new int[50]; //Arbitrarily larger than needed.
 	private int currentIndex = 0; //counts number of actions taken in this run.
 	
 	public int actionsDone = 0; //Always counts up until a game reset. Helps ensure we know when we're doing something periodic.
@@ -45,12 +45,15 @@ public class QWOPInterface {
 
 	/* Cost function */
 	public float Cost(){
-		return -game.TorsoBody.getPosition().x; //Just x at the moment, TODO: expand this.
+		float cost = OptionsHolder.CostFunction(game); //Cost function now stored in OptionsHOlder for easier access.
+//		return -game.TorsoBody.getPosition().x;
+		return cost;
 	}
 	
 	/* Check failure based on state */
 	public boolean CheckFailure(){
-		boolean failure = game.TorsoBody.getPosition().y>5; //ground is at 10ish with up being -, so we're calling torso above 7 being failure.	
+//		boolean failure = game.TorsoBody.getPosition().y>5; //ground is at 10ish with up being -, so we're calling torso above 7 being failure.	
+		boolean failure = OptionsHolder.FailureCondition(game); //Failure condition now stored in OptionsHolder for easier access.
 		return failure;
 	}
 	
@@ -117,11 +120,11 @@ public class QWOPInterface {
 		
 		if (currentIndex < 500 ){
 			currentSequence[currentIndex] = delay; //Keep track of the sequence we're doing this run.
-		}else{
-			for (int i = 0; i<50; i++){
-				System.out.println(currentSequence[i] + ",");
-			}
-			System.out.println(currentSequence[50]);
+		}else{ //If we've already filled our current sequence buffer, then it's probably periodic going a long time. Don't overfill the buffer.
+//			for (int i = 0; i<50; i++){
+//				System.out.println(currentSequence[i] + ",");
+//			}
+//			System.out.println(currentSequence[50]);
 		}
 		currentIndex++;
 

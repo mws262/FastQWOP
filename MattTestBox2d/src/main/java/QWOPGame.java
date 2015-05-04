@@ -257,8 +257,6 @@ public class QWOPGame extends JFrame{
 	  
     Vec2 gravity = new Vec2(0, 10f);
     m_world = new World(gravity);
-//    m_world.setParticleGravityScale(0.4f); //WHAT DOES THIS DO?
-//    m_world.setParticleDensity(1.2f); //WHAT DOES THIS DO?
     m_world.setAllowSleep(true);
     m_world.setContinuousPhysics(true);
     m_world.setWarmStarting(true);
@@ -268,7 +266,7 @@ public class QWOPGame extends JFrame{
     Filter dudeFilter = new Filter();
     dudeFilter.groupIndex = -1;
 
-    	options.visOn = graphicsFlag;
+    options.visOn = graphicsFlag;
 
     	
    /* 

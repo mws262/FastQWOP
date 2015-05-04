@@ -1,16 +1,13 @@
-
-
-import java.lang.reflect.Array;
 import java.util.Arrays;
 
 public class ExhaustiveQwop {
 
-	public static boolean verbose = true;
+	public static boolean verbose = OptionsHolder.verboseOn;
 	
-	public static boolean goPeriodic = false;
+	public static boolean goPeriodic = OptionsHolder.goPeriodic;
 	
 	private static TrialNode RootNode;
-	private static int depth = 8;
+	private static int depth = OptionsHolder.treeDepth;
 	
 	private static QWOPInterface QWOPHandler;
 	
@@ -38,7 +35,7 @@ public class ExhaustiveQwop {
 		}
 		System.out.println("This will take a max of " + searchspace + "  evaluations assuming no failures.");
 
-		int verboseIncrement = 1000;
+		int verboseIncrement = OptionsHolder.verboseIncrement;
 		
 //		TrialNode newNode = RootNode.SampleNew();
 		CurrentNode = RootNode;
@@ -81,11 +78,27 @@ public class ExhaustiveQwop {
 			try {
 				float cost = QWOPHandler.NextAction(NextNode.EchoControl());
 				NextNode.SetScore(-cost);
-				if(-cost>currentRecord){
+//				if(-cost>currentRecord){
+//					currentRecord = -cost;
+//					if (verbose){
+//						System.out.println("New record distance: " + currentRecord);
+//					    System.out.print("Control used: ");
+//					    for (int k = 0; k<oldActions.length; k++){
+//					    	System.out.print(oldActions[k] + ", ");
+//					    }
+//	
+//					    int ct = 0;
+//					    while (!(bufferNew[ct]<0)){//If it is not my filler value, then there's another new value this run to report.
+//					    	System.out.print(bufferNew[ct] + ", ");
+//					    	ct++;
+//					    }
+//					    System.out.println(NextNode.EchoControl() + ".");
+//					}
+//				}
+				if(true){
 					currentRecord = -cost;
 					if (verbose){
-						System.out.println("New record distance: " + currentRecord);
-					    System.out.print("Control used: ");
+
 					    for (int k = 0; k<oldActions.length; k++){
 					    	System.out.print(oldActions[k] + ", ");
 					    }
@@ -121,6 +134,7 @@ public class ExhaustiveQwop {
 					searchspace -= (removedsearchspace-1); //keep an extra one for the node we're at.
 				}
 				
+				//This method marches back up the nodes until if finds one that isn't fully explored. Then it goes all the way back down.
 				Arrays.fill(bufferNew, -1); //We failed, so clear out the buffer of new good actions.
 				newGoodActions = 0; //no new actions that are good anymore.
 							
