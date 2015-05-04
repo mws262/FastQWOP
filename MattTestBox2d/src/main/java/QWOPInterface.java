@@ -118,7 +118,7 @@ public class QWOPInterface {
 		//Increment us to the next action in the sequence:
 		sequencePosition = (sequencePosition)%4 + 1;
 		
-		if (currentIndex < 500 ){
+		if (currentIndex < 50 ){
 			currentSequence[currentIndex] = delay; //Keep track of the sequence we're doing this run.
 		}else{ //If we've already filled our current sequence buffer, then it's probably periodic going a long time. Don't overfill the buffer.
 //			for (int i = 0; i<50; i++){
