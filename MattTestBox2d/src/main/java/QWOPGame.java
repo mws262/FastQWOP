@@ -168,7 +168,7 @@
 //CLFARM joint (left elbow): (5.65125,-1.8125)
 //CRFARM joint (right elbow): (-0.06, -2.985)
 
-package org.jbox2d.testbed.framework.jogl;
+
 
 
 import java.awt.Graphics;

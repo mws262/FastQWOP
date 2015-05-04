@@ -1,4 +1,4 @@
-package org.jbox2d.testbed.framework.jogl;
+
 
 import java.util.ArrayList;
 import java.util.Arrays;

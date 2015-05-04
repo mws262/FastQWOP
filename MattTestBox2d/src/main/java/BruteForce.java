@@ -1,4 +1,4 @@
-package org.jbox2d.testbed.framework.jogl;
+
 
 public class BruteForce {
 

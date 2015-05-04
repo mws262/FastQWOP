@@ -1,5 +1,5 @@
 //Simple tester to run sequences of actions based on the 0,WO,0,QP pattern
-package org.jbox2d.testbed.framework.jogl;
+
 
 public class TestSequence {
 
