@@ -19,9 +19,10 @@ public class OptionsHolder {
 	public static int treeDepth = 8;
 	
 	/** List of possible actions at any point in this predefined sequence. Will wrap back to the first one whan each has been sampled from **/
+	
 	public static final int[][] ActionList = {
-		{0,2},
-		{1,2,3,4,0,3,2},
+		{0},
+		{21,22,23,24,25,26,27,28},
 		{11,12,13,14,15,16,17,18},
 		{48,49,50,51,52,53,54},
 		{21,22,23,24,25,26,27},
@@ -43,7 +44,7 @@ public class OptionsHolder {
 	/* STATE EVALUATION FUNCTIONS */
 	/** How do we decide when the run has failed? (currently checked at discrete decision points) **/
 	public static boolean FailureCondition(QWOPGame game){
-		boolean failure = game.TorsoBody.getPosition().y>7; //ground is at 10ish with up being -, so we're calling torso above 7 being failure.	
+		boolean failure = game.HeadBody.getPosition().y>3 ; //ground is at 10ish with up being -, so we're calling torso above 7 being failure.	
 		return failure;
 	}
 	

@@ -12,7 +12,8 @@ public class TestSequence {
 //		0, 25, 15, 65, 20, 60, 30, 65 1st
 		//Sequence to test
 		//0, 25, 15, 52, 26, 64, 1, 68
-		int[] delay = {0, 23, 14, 50, 26, 65, 0, 61};
+		//0, 21, 15, 50, 26, 70, 0, 69
+		int[] delay = {0, 25, 14, 51, 27, 66, 0, 64};//0, 23, 14, 50, 26, 65, 0, 61};
 		
 		QWOPInterface game = new QWOPInterface();
 		game.runRealtime = true;		

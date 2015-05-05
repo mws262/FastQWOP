@@ -32,7 +32,7 @@ public class ExhaustiveQwop {
 		
 		int searchspace = 1;
 		for (int i = 0; i<depth; i++){
-			searchspace *= TrialNode.ActionList[i%(TrialNode.ActionList.length-1)].length;
+			searchspace *= TrialNode.ActionList[i%(TrialNode.ActionList.length)].length;
 		}
 		System.out.println("This will take a max of " + searchspace + "  evaluations assuming no failures.");
 
