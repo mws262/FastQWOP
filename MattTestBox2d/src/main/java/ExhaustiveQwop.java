@@ -1,6 +1,6 @@
 import java.util.Arrays;
 import java.util.Random;
-
+//Note: periodic solutions with noise.
 public class ExhaustiveQwop {
 
 	public static boolean verbose = OptionsHolder.verboseOn;
@@ -91,6 +91,7 @@ public class ExhaustiveQwop {
 				if(-cost>currentRecord){
 					currentRecord = -cost;
 					if (verbose){
+						
 						System.out.println("New record distance: " + currentRecord);
 					    System.out.print("Control used: ");
 					    for (int k = 0; k<oldActions.length; k++){
@@ -116,6 +117,7 @@ public class ExhaustiveQwop {
 			failed = failed || QWOPHandler.CheckFailure();
 			/* Handle Failure or move down the tree if successful */
 			
+
 			if (failed){ //If we fall, then remove this new node and check to see if we've completed any trees.
 
 				
@@ -123,7 +125,7 @@ public class ExhaustiveQwop {
 				if (verbose){ //Don't bother unless we're spitting out this diagnostic info.
 					int removedsearchspace = 1;
 					for (int i = NextNode.TreeDepth; i<depth; i++){
-						removedsearchspace *= TrialNode.ActionList[i%(TrialNode.ActionList.length-1)].length;
+						removedsearchspace *= TrialNode.ActionList[i%(TrialNode.ActionList.length)].length;
 					}
 					searchspace -= (removedsearchspace-1); //keep an extra one for the node we're at.
 				}

@@ -23,7 +23,8 @@ public class QWOPInterface {
 	private int[] currentSequence = new int[50]; //Arbitrarily larger than needed.
 	private int currentIndex = 0; //counts number of actions taken in this run.
 	
-	public int actionsDone = 0; //Always counts up until a game reset. Helps ensure we know when we're doing something periodic.
+	public int stepsInRun = 0; //Always counts up until a game reset. Helps ensure we know when we're doing something periodic.
+	
 	
 	public boolean repeatSequence = true;
 	public int prefixLength = 4; //How many elements lead up to the repeated portion.
@@ -40,7 +41,13 @@ public class QWOPInterface {
 		sequencePosition = 1; //Reset to the beginning of the predefined sequence of actions.
 		currentIndex = 0;
 		Arrays.fill(currentSequence, 0);
-		actionsDone = 0;
+		stepsInRun = 0;
+	}
+	
+	/* Dist/phys steps */
+	public float NormSpeed(){
+		float normspeed = game.TorsoBody.getPosition().x/stepsInRun;
+		return normspeed;
 	}
 
 	/* Cost function */
@@ -74,7 +81,8 @@ public class QWOPInterface {
 //		System.out.println(subsequence.length);
 		while(!fallen){
 			DoSequence(subsequence);
-			fallen = CheckFailure();
+			fallen = CheckFailure() || NormSpeed()<0.1;
+			if (NormSpeed()<0.1) System.out.println("We've killed a solution due to low periodic speed.");
 		}
 		
 	}
@@ -127,7 +135,7 @@ public class QWOPInterface {
 //			System.out.println(currentSequence[50]);
 		}
 		currentIndex++;
-
+		stepsInRun += delay;
 		if((currentIndex == periodicLength + prefixLength)){
 			DoPeriodic();
 		}
