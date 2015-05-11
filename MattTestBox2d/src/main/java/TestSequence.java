@@ -15,6 +15,14 @@ public class TestSequence {
 		//0, 21, 15, 50, 26, 70, 0, 69
 		int[] delay = {0, 25, 15, 52, 23, 68, 0, 63};//0, 25, 14, 49, 27, 68, 1, 61};//0, 25, 14, 51, 27, 66, 0, 64};//0, 23, 14, 50, 26, 65, 0, 61};
 		
+		
+		//Check 
+		double[] delayD = {78.3225186340944 ,70.86491889212473 ,23.580173250066895 ,93.52296625839308 ,12.711573486621079 ,38.82488210084247 ,55.06180085373701 ,83.73338848389253};
+		
+		for (int i = 0; i<delay.length; i++){
+			delay[i] = (int)delayD[i];	
+		}
+		
 		QWOPInterface game = new QWOPInterface();
 		game.runRealtime = true;		
 		game.NewGame();
