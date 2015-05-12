@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * This class deals with making a state discretizations, updating value functions, and interpolating when needed.
@@ -181,15 +182,37 @@ public class Discretizer {
 		
 		for (int i = 0; i< state.length; i++){
 			scaledState[i] = (state[i] - stateBounds.get(i)[0])/(stateBounds.get(i)[1] - stateBounds.get(i)[0])*dimGridPts.get(i); //Subtract out the low bound. Divide by full scale. Multiply by number of bins (bin-space representation).
-			xBase[i] = (int)Math.floor(scaledState[i]);
-			cubeX[i] = scaledState[i] - (float)xBase[i];
+			xBase[i] = (int)Math.floor(scaledState[i]); //dist to base corner of hypercube in normalized units
+			cubeX[i] = scaledState[i] - (float)xBase[i]; //dist within this hypercube to the point in normalized units.
 		}
 		
+		//Sort step:
+		int[] I = {1,2,3,4};
 		
+		//Simplex always has nDim+1 corners.
 		
+		// zeros(nDim,nDim+1)
+		float[][] X = new float[state.length][state.length+1];
+		Arrays.fill(X, 0f);
+		// zeros(nDim+1,1)
+		float[] w = new float[state.length+1];
+		Arrays.fill(w, 0);
 		
+		float wSum = 0;
+		
+		for (int i = 0; i<state.length; i++){
+			Arrays.fill(X[I[i]],state.length+1-i,state.length+1,1f);
+			w[state.length+1-i] = cubeX[I[i]] - wSum;
+			wSum += w[state.length+1-i];	
+		}
+		
+		w[0] = 1-wSum;
+		
+			
 		
 		
 	}
 	
 }
+
+
