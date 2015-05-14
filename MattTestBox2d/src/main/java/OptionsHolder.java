@@ -10,7 +10,7 @@ public class OptionsHolder {
 	
 	/* SEARCH OPTIONS */
 	/** Repeat actions to attempt periodic motion? **/
-	public static boolean goPeriodic = true;
+	public static boolean goPeriodic = false;
 	
 	/** After failure, do we go back up to the nearest unexplored node (true), or do we reset to the top (false). **/
 	public static boolean marchUp = false;
@@ -21,13 +21,13 @@ public class OptionsHolder {
 	/** List of possible actions at any point in this predefined sequence. Will wrap back to the first one whan each has been sampled from **/
 	
 	public static final int[][] ActionList = {
-		{0},
-		{25},
-		{15},
-		{52},
+		{0,1,2,3,4},
+		{20,21,22,23,24,25,26,27,28},
+		{10,11,12,13,14,15,16,17,18,19},
+		{49,50,51,52,53,54,55},
 		{21,22,23,24,25,26,27},
 		{65,66,67,68,69},
-		{0,1,2,3,4,5,6},
+		{0,1,2,3,4,5,6,7},
 		{59,60,61,62,63,64,65,66}
 		};
 	

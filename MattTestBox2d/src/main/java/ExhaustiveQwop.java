@@ -48,6 +48,12 @@ public class ExhaustiveQwop {
 		int[] bufferNew = new int[50]; //plenty big for storing new values since last fall.
 		Arrays.fill(bufferNew, -1);
 		int newGoodActions = 0;
+		
+		StateHolder BeginningState = new StateHolder(QWOPHandler);
+		StateHolder EndState = new StateHolder(QWOPHandler);
+		float LeastError = Float.MAX_VALUE;
+		float NewError = Float.MAX_VALUE;
+		
 		while (!finished){
 
 			/* If last time we failed, figure out the last good point we want to explore from and come up with the sequence of actions to get there */
@@ -88,6 +94,34 @@ public class ExhaustiveQwop {
 			try {
 				float cost = QWOPHandler.NextAction(NextNode.EchoControl());
 				NextNode.SetScore(-cost);
+				
+				//NEW NEW: Once we get past the intro 2 steps, we want to back up the state because we're looking for a set of 4 parameters which results in something reasonably close to periodic.
+				if(NextNode.TreeDepth == 4){
+					BeginningState.CaptureState();
+					
+				}else if(NextNode.TreeDepth == 8){ //The end of the periodic part
+					EndState.CaptureState();
+					NewError = EndState.Compare(BeginningState);
+					if (NewError < LeastError){
+						
+						if (verbose){
+							System.out.println("New record low error: " + NewError);
+						    System.out.print("Control used: ");
+						    for (int k = 0; k<oldActions.length; k++){
+						    	System.out.print(oldActions[k] + ", ");
+						    }
+						    int ct = 0;
+						    while (!(bufferNew[ct]<0)){//If it is not my filler value, then there's another new value this run to report.
+						    	System.out.print(bufferNew[ct] + ", ");
+						    	ct++;
+						    }
+						    System.out.println(NextNode.EchoControl() + ".");
+						}
+						LeastError = NewError;
+					}
+					
+				}
+				
 				if(-cost>currentRecord){
 					currentRecord = -cost;
 					if (verbose){
@@ -130,13 +164,11 @@ public class ExhaustiveQwop {
 					searchspace -= (removedsearchspace-1); //keep an extra one for the node we're at.
 				}
 				
-
 				Arrays.fill(bufferNew, -1); //We failed, so clear out the buffer of new good actions.
 				newGoodActions = 0; //no new actions that are good anymore.
 				
 				//Remove the dead node, and propagate back to see if we've fully explored any nodes.
 				boolean ExploredFlag = CurrentNode.RemoveChild(NextNode);
-				
 				
 				//Now we need to decide where to go back to.
 				if(OptionsHolder.marchUp){

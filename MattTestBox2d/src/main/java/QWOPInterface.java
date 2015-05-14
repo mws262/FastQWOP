@@ -9,7 +9,7 @@ import org.jbox2d.dynamics.World;
 public class QWOPInterface {
 
 	private World m_world;
-	private QWOPGame game;
+	public QWOPGame game;
 	
 	public boolean runRealtime = false;
 	//Accounting for a single run:
@@ -82,7 +82,7 @@ public class QWOPInterface {
 		while(!fallen){
 			DoSequence(subsequence);
 			fallen = CheckFailure() || NormSpeed()<0.1;
-			if (NormSpeed()<0.1) System.out.println("We've killed a solution due to low periodic speed.");
+//			if (NormSpeed()<0.1) System.out.println("We've killed a solution due to low periodic speed.");
 		}
 		
 	}
