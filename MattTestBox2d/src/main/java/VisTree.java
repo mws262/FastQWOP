@@ -1,3 +1,4 @@
+import java.awt.Color;
 import java.awt.Graphics;
 
 import javax.swing.JFrame;
@@ -49,8 +50,11 @@ public class VisTree extends JFrame{
   	  
       public void paintComponent(Graphics g){
     	  //Go through and draw all the lines defined.
-
       	for (int i = 0; i<Lines.numLines; i++){
+      		if(Lines.LineList[i][3] == 0 && Lines.LineList[i][4] == 0){ //If the x2 and y2 are 0, we've come to the end of actual lines.
+      			break;
+      		}
+      		g.setColor(Lines.ColorList[i]);
       		g.drawLine(Lines.LineList[i][0], Lines.LineList[i][1], Lines.LineList[i][2], Lines.LineList[i][3]);
       	}
        }
