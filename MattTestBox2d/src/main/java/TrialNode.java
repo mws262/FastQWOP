@@ -43,6 +43,7 @@ public class TrialNode {
 	public int[] nodeLocation = new int[2]; //Location that this node appears on the tree visualization
 	public double nodeAngle = 0; //Keep track of the angle that the line previous node to this node makes.
 	public double sweepAngle = 2*Math.PI;
+	public boolean LabelOn = false; //Will this node have a text label?
 	
 	//Action list order and actions.
 	// for 1st depth, will pick one of 1st set of actions, etc.
@@ -158,6 +159,77 @@ public class TrialNode {
 		
 	}
 	
+	/** Shift all visualization nodes by an x and y-offset from this node down. Should almost always be called from the root-level **/
+	public void ShiftNodes(int x,int y){
+		
+		nodeLocation[0] += x;
+		nodeLocation[1] += y;
+		
+		for (int i = 0; i<ChildNodes.size(); i++){
+			ChildNodes.get(i).ShiftNodes(x,y);
+		}
+	}
+	/** Rotates everything below this node about this node's parent dot **/
+	public void RotateBranch(double angle){
+
+		int relX = nodeLocation[0] - ParentNode.nodeLocation[0];
+		int relY = nodeLocation[1] - ParentNode.nodeLocation[1];
+
+		int newRelX = (int)(relX*(Math.cos(nodeAngle)*(Math.cos(nodeAngle)*Math.cos(angle) - Math.sin(nodeAngle)*Math.sin(angle)) + Math.sin(nodeAngle)*(Math.cos(nodeAngle)*Math.sin(angle) + Math.cos(angle)*Math.sin(nodeAngle))) - relY*(Math.cos(nodeAngle)*(Math.cos(nodeAngle)*Math.sin(angle) + Math.cos(angle)*Math.sin(nodeAngle)) - Math.sin(nodeAngle)*(Math.cos(nodeAngle)*Math.cos(angle) - Math.sin(nodeAngle)*Math.sin(angle))));
+		int newRelY = (int)(relX*(Math.cos(nodeAngle)*(Math.cos(nodeAngle)*Math.sin(angle) + Math.cos(angle)*Math.sin(nodeAngle)) - Math.sin(nodeAngle)*(Math.cos(nodeAngle)*Math.cos(angle) - Math.sin(nodeAngle)*Math.sin(angle))) + relY*(Math.cos(nodeAngle)*(Math.cos(nodeAngle)*Math.cos(angle) - Math.sin(nodeAngle)*Math.sin(angle)) + Math.sin(nodeAngle)*(Math.cos(nodeAngle)*Math.sin(angle) + Math.cos(angle)*Math.sin(nodeAngle))));
+		
+		nodeLocation[0] = (newRelX + ParentNode.nodeLocation[0]);
+		nodeLocation[1] = (newRelY + ParentNode.nodeLocation[1]);
+		
+		nodeAngle += angle; //Change the angle of this node -- mostly for bookkeeping at this point.	
+		
+		for (int i = 0; i<ChildNodes.size(); i++){ //Now do the same for all nodes below this one.
+			ChildNodes.get(i).RotateBranch(angle,ParentNode); 
+		}
+	}
+	
+	/** Rotates everything from this point on about a SPECIFIED node **/
+	public void RotateBranch(double angle, TrialNode fulcrum){
+		
+		int relX = nodeLocation[0] - fulcrum.nodeLocation[0];
+		int relY = nodeLocation[1] - fulcrum.nodeLocation[1];
+		
+		//Compound rotation origrot*Rot*origrot' -- derived symbolically.
+		int newRelX = (int)(relX*(Math.cos(nodeAngle)*(Math.cos(nodeAngle)*Math.cos(angle) - Math.sin(nodeAngle)*Math.sin(angle)) + Math.sin(nodeAngle)*(Math.cos(nodeAngle)*Math.sin(angle) + Math.cos(angle)*Math.sin(nodeAngle))) - relY*(Math.cos(nodeAngle)*(Math.cos(nodeAngle)*Math.sin(angle) + Math.cos(angle)*Math.sin(nodeAngle)) - Math.sin(nodeAngle)*(Math.cos(nodeAngle)*Math.cos(angle) - Math.sin(nodeAngle)*Math.sin(angle))));
+		int newRelY = (int)(relX*(Math.cos(nodeAngle)*(Math.cos(nodeAngle)*Math.sin(angle) + Math.cos(angle)*Math.sin(nodeAngle)) - Math.sin(nodeAngle)*(Math.cos(nodeAngle)*Math.cos(angle) - Math.sin(nodeAngle)*Math.sin(angle))) + relY*(Math.cos(nodeAngle)*(Math.cos(nodeAngle)*Math.cos(angle) - Math.sin(nodeAngle)*Math.sin(angle)) + Math.sin(nodeAngle)*(Math.cos(nodeAngle)*Math.sin(angle) + Math.cos(angle)*Math.sin(nodeAngle))));
+		
+		nodeLocation[0] = (newRelX + fulcrum.nodeLocation[0]);
+		nodeLocation[1] = (newRelY + fulcrum.nodeLocation[1]);
+		
+		nodeAngle += angle; //Change the angle of this node -- mostly for bookkeeping at this point.	
+		
+		for (int i = 0; i<ChildNodes.size(); i++){ //Now do the same for all nodes below this one.
+			ChildNodes.get(i).RotateBranch(angle,fulcrum); 
+		}
+	}
+	
+	/** Make it bigger/smaller. This version assumes that this is the root about which zooming occurs **/
+	public void ZoomNodes(double zoomFactor){
+		for (int i = 0; i<ChildNodes.size(); i++){ //Now do the same for all nodes below this one.
+			ChildNodes.get(i).ZoomNodes(zoomFactor,this);
+		}
+	}
+	
+	/** Make it bigger/smaller. This version is for recursing through the children. **/
+	public void ZoomNodes(double zoomFactor, TrialNode zoomRoot){
+		
+		int relX = nodeLocation[0] - zoomRoot.nodeLocation[0];
+		int relY = nodeLocation[1] - zoomRoot.nodeLocation[1];
+		
+		nodeLocation[0] = (int)(relX*zoomFactor + zoomRoot.nodeLocation[0]);
+		nodeLocation[1] = (int)(relY*zoomFactor + zoomRoot.nodeLocation[1]);
+		
+		for (int i = 0; i<ChildNodes.size(); i++){ //Now do the same for all nodes below this one.
+			ChildNodes.get(i).ZoomNodes(zoomFactor,zoomRoot);
+		}
+		
+	}
+	
 	///// Tree visualization methods end ///////
 	
 	/** Return the control action (NOT the index of the control) **/
@@ -205,10 +277,6 @@ public class TrialNode {
 				}
 			}
 		}
-		
-		
-		
-
 		throw new RuntimeException("Error in sampling a node. Couldn't find an unexplored or untested node.");
 	}
 
@@ -222,6 +290,7 @@ public class TrialNode {
 	}
 	/** Remove a specific child node. ALSO check if this node and any above it have now become fully explored. **/
 	public boolean RemoveChild(TrialNode DeadNode){ //Now returns whether this node is fully explored too.
+		DeadNode.LabelOn = false;
 		ChildNodes.remove(DeadNode);
 		CheckExplored();
 		return FullyExplored;

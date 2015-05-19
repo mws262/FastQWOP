@@ -1,5 +1,8 @@
 public class OptionsHolder {
-
+	/* Global variable cringe */
+	/** Total games played **/
+	public static int gamesPlayed = 0;
+	
 	/* OUTPUT OPTIONS */
 	/**  Are graphics and delays on? **/
 	public static boolean visOn = false;
@@ -7,6 +10,7 @@ public class OptionsHolder {
 	/** Report info as the search is running? **/
 	public static boolean verboseOn = true;
 	public static int verboseIncrement = 1000; // How many games between outputs?
+	
 	
 	/* SEARCH OPTIONS */
 	/** Repeat actions to attempt periodic motion? **/
@@ -24,9 +28,9 @@ public class OptionsHolder {
 	/** List of possible actions at any point in this predefined sequence. Will wrap back to the first one whan each has been sampled from **/
 	
 	public static final int[][] ActionList = {
-		{0,1},
-		{25,26,27,28},
-		{10,11,12,13,14,15,16,17,18,19},
+		{0},
+		{25,26},
+		{13,14,15,16,17,18,19},
 		{49,50,51,52,53,54,55},
 		{0,1,2,3,4,5,6,7},
 		{65,66,67,68,69},
@@ -57,7 +61,16 @@ public class OptionsHolder {
 	  
 	  /** Length of a tree edge **/
 	  public static float edgeLength = 100;
+	  
+	  /** General size factor **/
+	  public static float sizeFactor = 1f;
 
+	  /** When tree visualization is zoomed in, must change the reference edge length for new branches **/
+	  public static void ChangeSizeFactor(float increaseFactor){
+		  sizeFactor *= increaseFactor;
+		  edgeLength *= increaseFactor;
+		  
+	  }
 	
 	/* STATE EVALUATION FUNCTIONS */
 	/** How do we decide when the run has failed? (currently checked at discrete decision points) **/

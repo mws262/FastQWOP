@@ -211,6 +211,7 @@ public class ExhaustiveQwop {
 			}
 			if (failed){
 				counter++; //Right now, the counter is just recording complete runs (ie until the failure occurs.
+				OptionsHolder.gamesPlayed = counter;
 			}
 		}
 		//Final info on iterations.
