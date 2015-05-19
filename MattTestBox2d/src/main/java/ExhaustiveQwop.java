@@ -38,7 +38,6 @@ public class ExhaustiveQwop {
 
 		int verboseIncrement = OptionsHolder.verboseIncrement;
 		
-//		TrialNode newNode = RootNode.SampleNew();
 		CurrentNode = RootNode;
 		int counter = 0;
 		boolean failed = false;
@@ -53,6 +52,11 @@ public class ExhaustiveQwop {
 		StateHolder EndState = new StateHolder(QWOPHandler);
 		float LeastError = Float.MAX_VALUE;
 		float NewError = Float.MAX_VALUE;
+		
+		
+		// Node visualization stuff
+		VisTree visnodes = new VisTree(RootNode);
+		
 		
 		while (!finished){
 
@@ -154,6 +158,10 @@ public class ExhaustiveQwop {
 
 			if (failed){ //If we fall, then remove this new node and check to see if we've completed any trees.
 
+				//Plot the new tree nodes if this setting is on:
+				if(OptionsHolder.treeVisOn){
+					visnodes.UpdateTree();
+				}
 				
 				//For diagnostics, keep track of how many potential path have been eliminated by failures.
 				if (verbose){ //Don't bother unless we're spitting out this diagnostic info.

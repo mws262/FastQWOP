@@ -13,10 +13,12 @@ public class TestSequence {
 		//Sequence to test
 		//0, 25, 15, 52, 26, 64, 1, 68
 		//0, 21, 15, 50, 26, 70, 0, 69
-		int[] delay = {0, 25, 16, 52, 21, 69, 7, 62};//0, 25, 14, 49, 27, 68, 1, 61};//0, 25, 14, 51, 27, 66, 0, 64};//0, 23, 14, 50, 26, 65, 0, 61};
+		int[] delay = {0, 25, 19, 51, 5, 69, 0, 59 };
+			//{0, 26, 17, 55, 24, 69, 2, 61};//0, 25, 14, 51, 27, 66, 5, 64};//0, 25, 14, 49, 27, 68, 1, 61};//0, 25, 14, 51, 27, 66, 0, 64};//0, 23, 14, 50, 26, 65, 0, 61};
 		
 		QWOPInterface game = new QWOPInterface();
 		game.runRealtime = true;		
+		game.repeatSequence = true;
 		game.NewGame();
 		try {
 			game.DoSequence(delay);

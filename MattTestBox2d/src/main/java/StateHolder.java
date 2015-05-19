@@ -12,7 +12,7 @@ public class StateHolder {
 	
 	//Convention will be x,y,theta
 	public float[] TorsoState = new float[3];
-	public static float TorsoWeight = 1;
+	public static float TorsoWeight = 10;
 	
 	public float[] HeadState = new float[3];
 	public static float HeadWeight = 1;
