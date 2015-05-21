@@ -1081,7 +1081,7 @@ if (options.visOn || (plot == null)){
 		  LKneeJ.setMotorSpeed(0f);  
 	  }
 	  
-	  if(options.visOn){
+	  if(OptionsHolder.visOn){
 		  plot.repaint();
 	  }
 //	  System.out.println(LKneeJ.getMotorTorque(0.04f));
@@ -1116,7 +1116,7 @@ class DrawPane extends JPanel{
 		this.world = world;
 		visOn = new JCheckBox("Vis on?");
 		this.add(visOn);
-		visOn.setSelected(true);
+		visOn.setSelected(false);
 		optionsList = new CheckBoxListener2(options);
 		visOn.addItemListener(optionsList);
 		this.options = options;
@@ -1181,12 +1181,14 @@ class CheckBoxListener2 implements ItemListener {
 	}
     public void itemStateChanged(ItemEvent e) {
 
-        Object source = e.getSource();
+//        Object source = e.getSource();
 
 
         if (e.getStateChange() == ItemEvent.DESELECTED){
-        	options.visOn = false;
+        	OptionsHolder.visOn = false;
         	
+        }else if (e.getStateChange() == ItemEvent.SELECTED){
+        	OptionsHolder.visOn = true;
         }
     }
 }

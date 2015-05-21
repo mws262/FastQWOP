@@ -4,7 +4,7 @@ public class OptionsHolder {
 	public static int gamesPlayed = 0;
 	
 	/* OUTPUT OPTIONS */
-	/**  Are graphics and delays on? **/
+	/**  Are (runner, not node) graphics and delays on? **/
 	public static boolean visOn = false;
 	
 	/** Report info as the search is running? **/
@@ -23,7 +23,7 @@ public class OptionsHolder {
 	public static boolean sampleRandom = true;
 	
 	/** Depth of the search (number of parameters down the tree) **/
-	public static int treeDepth = 50;
+	public static int treeDepth = 8;
 	
 	/** List of possible actions at any point in this predefined sequence. Will wrap back to the first one whan each has been sampled from **/
 	
@@ -37,6 +37,8 @@ public class OptionsHolder {
 		{0,1,2,3,4,5,6,7},
 		{59,60,61,62,63,64,65,66}
 		};
+	
+	
 	
 	/* PHYSICS SETTINGS */
 	/** Physics timestep **/

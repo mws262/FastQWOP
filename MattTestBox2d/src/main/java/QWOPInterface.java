@@ -11,7 +11,6 @@ public class QWOPInterface {
 	private World m_world;
 	public QWOPGame game;
 	
-	public boolean runRealtime = false;
 	//Accounting for a single run:
 	int sequencePosition = 1; //Start with action 1, increment..
 	
@@ -36,7 +35,7 @@ public class QWOPInterface {
 	
 	/* Make a new game */
 	public void NewGame(){
-		game.Setup(runRealtime);
+		game.Setup(OptionsHolder.visOn);
 		m_world = game.getWorld();
 		sequencePosition = 1; //Reset to the beginning of the predefined sequence of actions.
 		currentIndex = 0;
@@ -95,28 +94,28 @@ public class QWOPInterface {
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,false, false, false);
 				m_world.step(timestep, veliterations, positerations);
-				if (runRealtime) Thread.sleep((long)delaymillis);
+				if (OptionsHolder.visOn) Thread.sleep((long)delaymillis);
 			}
 			break;
 		case 2: // W-O keys down
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,true, true, false);
 				m_world.step(timestep, veliterations, positerations);
-				if (runRealtime) Thread.sleep((long)delaymillis);
+				if (OptionsHolder.visOn) Thread.sleep((long)delaymillis);
 			}
 			break;
 		case 3: //Another pause.
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,false, false, false);
 				m_world.step(timestep, veliterations, positerations);
-				if (runRealtime) Thread.sleep((long)delaymillis);
+				if (OptionsHolder.visOn) Thread.sleep((long)delaymillis);
 			}
 			break;
 		case 4: // Q-P keys down.
 			for (int j = 0; j<delay; j++){
 				game.everyStep(true,false, false, true);
 				m_world.step(timestep, veliterations, positerations);
-				if (runRealtime) Thread.sleep((long)delaymillis);
+				if (OptionsHolder.visOn) Thread.sleep((long)delaymillis);
 			}
 			break;
 		default:

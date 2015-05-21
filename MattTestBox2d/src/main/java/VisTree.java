@@ -80,7 +80,7 @@ public class VisTree extends JFrame{
 	  Font bigFont = new Font ("Ariel", style , 36);
 	  Font smallFont = new Font("Ariel",style, 14);
 	  
-	  public FontScaler scaleFont = new FontScaler(3,24,21);
+	  public FontScaler scaleFont = new FontScaler(3,30,21);
 
 	//When creating a new visualizer, wee need to know the root node so we can run down the tree and draw it.
 	public VisTree(TrialNode root) {
