@@ -42,10 +42,14 @@ public class LineHolder {
 	
 	/** Give this 2 nodes and it will store the line between them. **/
 	public void AddLine(TrialNode parent, TrialNode child){
-		LineList[fillIndex][0] = parent.nodeLocation[0];
-		LineList[fillIndex][1] = parent.nodeLocation[1];
-		LineList[fillIndex][2] = child.nodeLocation[0];
-		LineList[fillIndex][3] = child.nodeLocation[1];
+		if (fillIndex>=LineList.length){
+			System.out.println("Warning: line list is overflowing.");
+			return;
+		}
+		LineList[fillIndex][0] = (int)parent.nodeLocation[0];
+		LineList[fillIndex][1] = (int)parent.nodeLocation[1];
+		LineList[fillIndex][2] = (int)child.nodeLocation[0];
+		LineList[fillIndex][3] = (int)child.nodeLocation[1];
 		ColorList[fillIndex] = Color.BLACK;
 		
 		NodeList[fillIndex][0] = parent;
@@ -67,10 +71,14 @@ public class LineHolder {
 			break;
 		}
 		
-		LineList[fillIndex][0] = parent.nodeLocation[0];
-		LineList[fillIndex][1] = parent.nodeLocation[1];
-		LineList[fillIndex][2] = child.nodeLocation[0];
-		LineList[fillIndex][3] = child.nodeLocation[1];
+		LineList[fillIndex][0] = (int)parent.nodeLocation[0];
+		LineList[fillIndex][1] = (int)parent.nodeLocation[1];
+		LineList[fillIndex][2] = (int)child.nodeLocation[0];
+		LineList[fillIndex][3] = (int)child.nodeLocation[1];
+		
+		NodeList[fillIndex][0] = parent;
+		NodeList[fillIndex][1] = child;
+		
 		fillIndex++;
 	}
 	

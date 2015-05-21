@@ -14,22 +14,22 @@ public class OptionsHolder {
 	
 	/* SEARCH OPTIONS */
 	/** Repeat actions to attempt periodic motion? **/
-	public static boolean goPeriodic = false;
+	public static boolean goPeriodic = true;
 	
 	/** After failure, do we go back up to the nearest unexplored node (true), or do we reset to the top (false). **/
-	public static boolean marchUp = false;
+	public static boolean marchUp =  false;
 	
 	/** When picking an already-sampled, but not fully-explored route to try, do we do it randomly, or just grab the first one? **/
 	public static boolean sampleRandom = true;
 	
 	/** Depth of the search (number of parameters down the tree) **/
-	public static int treeDepth = 8;
+	public static int treeDepth = 50;
 	
 	/** List of possible actions at any point in this predefined sequence. Will wrap back to the first one whan each has been sampled from **/
 	
 	public static final int[][] ActionList = {
-		{0},
-		{25,26},
+		{0,2},
+		{18,19,23,24,25,26},
 		{13,14,15,16,17,18,19},
 		{49,50,51,52,53,54,55},
 		{0,1,2,3,4,5,6,7},

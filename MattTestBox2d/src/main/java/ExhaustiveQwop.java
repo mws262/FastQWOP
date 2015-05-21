@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 //Note: periodic solutions with noise.
@@ -11,6 +12,8 @@ public class ExhaustiveQwop {
 	private static int depth = OptionsHolder.treeDepth;
 	
 	private static QWOPInterface QWOPHandler;
+	
+	public static ArrayList<Float> CostHolder = new ArrayList<Float>(); //keep a list of all the costs
 	
 	public ExhaustiveQwop() {
 		// TODO Auto-generated constructor stub
@@ -28,7 +31,7 @@ public class ExhaustiveQwop {
 		TrialNode CurrentNode;
 		TrialNode NextNode;
 		float currentRecord = 0;
-		
+		int maxDepth = 0;
 		
 		int searchspace = 1;
 		for (int i = 0; i<depth; i++){
@@ -158,8 +161,14 @@ public class ExhaustiveQwop {
 
 			if (failed){ //If we fall, then remove this new node and check to see if we've completed any trees.
 
+				CostHolder.add(-CurrentNode.rawScore);
+				if (CurrentNode.TreeDepth>maxDepth) {
+					maxDepth = CurrentNode.TreeDepth; //Update the tree depth if we manage to go deeper.
+					visnodes.maxDepth = maxDepth;
+				}
 				//Plot the new tree nodes if this setting is on:
 				if(OptionsHolder.treeVisOn){
+					visnodes.ScaleCosts(CostHolder); //Give the visTree all the end costs for scaling coloring.
 					visnodes.UpdateTree();
 				}
 				
