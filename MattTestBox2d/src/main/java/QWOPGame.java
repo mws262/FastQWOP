@@ -241,9 +241,11 @@ public class QWOPGame extends JFrame{
   public RevoluteJoint LElbowJ;
   public RevoluteJoint NeckJ;
 
-  DrawPane plot;
+//  DrawPane plot;
   
   OptionsHolder options = new OptionsHolder();
+  
+  public boolean visOn = false;
   
   public QWOPGame(){
 	  
@@ -266,8 +268,8 @@ public class QWOPGame extends JFrame{
     Filter dudeFilter = new Filter();
     dudeFilter.groupIndex = -1;
 
-    options.visOn = graphicsFlag;
-
+//    options.visOn = graphicsFlag;
+    this.visOn = graphicsFlag;
     	
    /* 
     * Make the bodies and collision shapes
@@ -896,16 +898,16 @@ public class QWOPGame extends JFrame{
     
     
     
-if (options.visOn || (plot == null)){
-//	  GET GRAPHICS UP AND RUNNING:
-	  JPanel panel = new JPanel();
-	  JFrame frame = new JFrame();
-	  plot = new DrawPane(getWorld(),options);
-	  setContentPane(plot);
-	  setVisible(true);
-	  setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-	  setSize(1000,1000);
-}
+//if (visOn || (plot == null)){
+////	  GET GRAPHICS UP AND RUNNING:
+//	  JPanel panel = new JPanel();
+//	  JFrame frame = new JFrame();
+//	  plot = new DrawPane(getWorld(),options);
+//	  setContentPane(plot);
+//	  setVisible(true);
+//	  setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//	  setSize(1000,1000);
+//}
 
 
   } 
@@ -1081,9 +1083,9 @@ if (options.visOn || (plot == null)){
 		  LKneeJ.setMotorSpeed(0f);  
 	  }
 	  
-	  if(OptionsHolder.visOn){
-		  plot.repaint();
-	  }
+//	  if(visOn){
+//		  plot.repaint();
+//	  }
 //	  System.out.println(LKneeJ.getMotorTorque(0.04f));
 //	    System.out.println(LHipJ.m_motorMass);
 //	    System.out.println(LThighBody.m_I);
@@ -1094,101 +1096,101 @@ if (options.visOn || (plot == null)){
 }
 }
 
-//Graphics stuff
-class DrawPane extends JPanel{
-	World world;
-	Vec2 a = new Vec2(0,0);
-	Vec2 b = new Vec2(0,0);
-	Vec2 c = new Vec2(0,0);
-	float scaling = 10f;
-	int offsetx0 = 500;
-	int offsetx = offsetx0;
-	int offsety = 800;
-	float flipud = 1f;
-	float fliplr = 1f;
-	
-	OptionsHolder options;
-	
-	int headpos = 0;
-	JCheckBox visOn;
-	CheckBoxListener2 optionsList;
-	public DrawPane(World world,OptionsHolder options){
-		this.world = world;
-		visOn = new JCheckBox("Vis on?");
-		this.add(visOn);
-		visOn.setSelected(false);
-		optionsList = new CheckBoxListener2(options);
-		visOn.addItemListener(optionsList);
-		this.options = options;
-	}
-    public void paintComponent(Graphics g){
-    	super.paintComponent(g);
-  	  
-    	Body newbody = world.getBodyList();
-    	while (newbody != null){
-
-	    	Fixture newfixture = newbody.getFixtureList();
-	    	
-	    	while(newfixture != null){
-	    		if(newfixture.getType() == ShapeType.POLYGON){
-
-			    	PolygonShape newshape = (PolygonShape)newfixture.getShape();
-			    	
-			    	for (int k = 0; k<newshape.getVertexCount(); k++){
-			    		
-			    		Transform trans = newbody.getTransform();
-			    		
-			    		a = Transform.mul(trans, newshape.getVertex(k));
-			    		b = Transform.mul(trans, newshape.getVertex((k+1) % (newshape.getVertexCount())));
-			    		
-			    		g.drawLine((int)(fliplr*scaling*a.x)+offsetx, (int)(flipud*scaling*a.y)+offsety, (int)(fliplr*scaling*b.x)+offsetx, (int)(flipud*scaling*b.y)+offsety);			    		
-			    	}
-			    	
-	    		}else if (newfixture.getType() == ShapeType.CIRCLE){
-	    			CircleShape newshape = (CircleShape)newfixture.getShape();
-	    			headpos = (int)(-fliplr*scaling*newbody.getWorldCenter().x);
-	    			g.drawOval((int)(fliplr*scaling*(newbody.getWorldCenter().x-fliplr*newshape.getRadius())+offsetx), (int)(flipud*scaling*(newbody.getWorldCenter().y-flipud*newshape.getRadius())+offsety), (int)(scaling*newshape.getRadius()*2), (int)(scaling*newshape.getRadius()*2));
-	    			
-	    			
-	    		}else if (newfixture.getType() == ShapeType.EDGE){
-	    			
-	    			EdgeShape newshape = (EdgeShape)newfixture.getShape();
-		    		Transform trans = newbody.getTransform();
-
-		    		a = Transform.mul(trans, newshape.m_vertex1);
-		    		b = Transform.mul(trans, newshape.m_vertex2);
-		    		c = Transform.mul(trans, newshape.m_vertex2);
-		    		
-		    		g.drawLine((int)(fliplr*scaling*a.x)+offsetx, (int)(flipud*scaling*a.y)+offsety, (int)(fliplr*scaling*b.x)+offsetx, (int)(flipud*scaling*b.y)+offsety);			    		
-		    		g.drawLine((int)(fliplr*scaling*a.x)+offsetx, (int)(flipud*scaling*a.y)+offsety, (int)(fliplr*scaling*c.x)+offsetx, (int)(flipud*scaling*c.y)+offsety);			    		
-
-	    		}
-	    		newfixture = newfixture.getNext();
-	    		
-	    	}
-	    	
-	    	newbody = newbody.getNext();
-    	}
-    	
-    	offsetx = headpos + offsetx0;
-    }
-}
-
-class CheckBoxListener2 implements ItemListener {
-	OptionsHolder options;
-	public CheckBoxListener2(OptionsHolder options){
-		this.options = options;
-	}
-    public void itemStateChanged(ItemEvent e) {
-
-//        Object source = e.getSource();
-
-
-        if (e.getStateChange() == ItemEvent.DESELECTED){
-        	OptionsHolder.visOn = false;
-        	
-        }else if (e.getStateChange() == ItemEvent.SELECTED){
-        	OptionsHolder.visOn = true;
-        }
-    }
-}
+////Graphics stuff
+//class DrawPane extends JPanel{
+//	World world;
+//	Vec2 a = new Vec2(0,0);
+//	Vec2 b = new Vec2(0,0);
+//	Vec2 c = new Vec2(0,0);
+//	float scaling = 10f;
+//	int offsetx0 = 500;
+//	int offsetx = offsetx0;
+//	int offsety = 800;
+//	float flipud = 1f;
+//	float fliplr = 1f;
+//	
+//	OptionsHolder options;
+//	
+//	int headpos = 0;
+//	JCheckBox visOn;
+//	CheckBoxListener2 optionsList;
+//	public DrawPane(World world,OptionsHolder options){
+//		this.world = world;
+//		visOn = new JCheckBox("Vis on?");
+//		this.add(visOn);
+//		visOn.setSelected(false);
+//		optionsList = new CheckBoxListener2(options);
+//		visOn.addItemListener(optionsList);
+//		this.options = options;
+//	}
+//    public void paintComponent(Graphics g){
+//    	super.paintComponent(g);
+//  	  
+//    	Body newbody = world.getBodyList();
+//    	while (newbody != null){
+//
+//	    	Fixture newfixture = newbody.getFixtureList();
+//	    	
+//	    	while(newfixture != null){
+//	    		if(newfixture.getType() == ShapeType.POLYGON){
+//
+//			    	PolygonShape newshape = (PolygonShape)newfixture.getShape();
+//			    	
+//			    	for (int k = 0; k<newshape.getVertexCount(); k++){
+//			    		
+//			    		Transform trans = newbody.getTransform();
+//			    		
+//			    		a = Transform.mul(trans, newshape.getVertex(k));
+//			    		b = Transform.mul(trans, newshape.getVertex((k+1) % (newshape.getVertexCount())));
+//			    		
+//			    		g.drawLine((int)(fliplr*scaling*a.x)+offsetx, (int)(flipud*scaling*a.y)+offsety, (int)(fliplr*scaling*b.x)+offsetx, (int)(flipud*scaling*b.y)+offsety);			    		
+//			    	}
+//			    	
+//	    		}else if (newfixture.getType() == ShapeType.CIRCLE){
+//	    			CircleShape newshape = (CircleShape)newfixture.getShape();
+//	    			headpos = (int)(-fliplr*scaling*newbody.getWorldCenter().x);
+//	    			g.drawOval((int)(fliplr*scaling*(newbody.getWorldCenter().x-fliplr*newshape.getRadius())+offsetx), (int)(flipud*scaling*(newbody.getWorldCenter().y-flipud*newshape.getRadius())+offsety), (int)(scaling*newshape.getRadius()*2), (int)(scaling*newshape.getRadius()*2));
+//	    			
+//	    			
+//	    		}else if (newfixture.getType() == ShapeType.EDGE){
+//	    			
+//	    			EdgeShape newshape = (EdgeShape)newfixture.getShape();
+//		    		Transform trans = newbody.getTransform();
+//
+//		    		a = Transform.mul(trans, newshape.m_vertex1);
+//		    		b = Transform.mul(trans, newshape.m_vertex2);
+//		    		c = Transform.mul(trans, newshape.m_vertex2);
+//		    		
+//		    		g.drawLine((int)(fliplr*scaling*a.x)+offsetx, (int)(flipud*scaling*a.y)+offsety, (int)(fliplr*scaling*b.x)+offsetx, (int)(flipud*scaling*b.y)+offsety);			    		
+//		    		g.drawLine((int)(fliplr*scaling*a.x)+offsetx, (int)(flipud*scaling*a.y)+offsety, (int)(fliplr*scaling*c.x)+offsetx, (int)(flipud*scaling*c.y)+offsety);			    		
+//
+//	    		}
+//	    		newfixture = newfixture.getNext();
+//	    		
+//	    	}
+//	    	
+//	    	newbody = newbody.getNext();
+//    	}
+//    	
+//    	offsetx = headpos + offsetx0;
+//    }
+//}
+//
+//class CheckBoxListener2 implements ItemListener {
+//	OptionsHolder options;
+//	public CheckBoxListener2(OptionsHolder options){
+//		this.options = options;
+//	}
+//    public void itemStateChanged(ItemEvent e) {
+//
+////        Object source = e.getSource();
+//
+//
+//        if (e.getStateChange() == ItemEvent.DESELECTED){
+//        	OptionsHolder.visOn = false;
+//        	
+//        }else if (e.getStateChange() == ItemEvent.SELECTED){
+//        	OptionsHolder.visOn = true;
+//        }
+//    }
+//}

@@ -17,18 +17,13 @@ public class TestSequence {
 			//{0, 26, 17, 55, 24, 69, 2, 61};//0, 25, 14, 51, 27, 66, 5, 64};//0, 25, 14, 49, 27, 68, 1, 61};//0, 25, 14, 51, 27, 66, 0, 64};//0, 23, 14, 50, 26, 65, 0, 61};
 		
 		QWOPInterface game = new QWOPInterface();
-		game.runRealtime = true;		
 		game.repeatSequence = true;
-		game.NewGame();
+		game.NewGame(true);
 		try {
 			game.DoSequence(delay);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		
-		
 	}
-
 }

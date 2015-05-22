@@ -1,8 +1,4 @@
-
-
 import java.util.Arrays;
-
-import org.jbox2d.dynamics.Body;
 import org.jbox2d.dynamics.World;
 
 
@@ -29,18 +25,40 @@ public class QWOPInterface {
 	public int prefixLength = 4; //How many elements lead up to the repeated portion.
 	public int periodicLength = 4; // How many elements are the repeated portion.
 	
+	public boolean visOn = false;
+	
+	public VisRunner visRun;
+	
 	public QWOPInterface() {
-		game = new QWOPGame();
 	}
 	
 	/* Make a new game */
-	public void NewGame(){
-		game.Setup(OptionsHolder.visOn);
+	public void NewGame(boolean visOn){
+		game = new QWOPGame();
+		this.visOn = visOn;
+		game.Setup(visOn);
 		m_world = game.getWorld();
 		sequencePosition = 1; //Reset to the beginning of the predefined sequence of actions.
 		currentIndex = 0;
 		Arrays.fill(currentSequence, 0);
 		stepsInRun = 0;
+		
+		// If we're visualizing, then either create the visualizer or pass it the new world we're working with.
+		if (visOn && visRun == null){
+			visRun = new VisRunner(game.getWorld());
+		}else if(visOn){
+			visRun.SwitchWorlds(game.getWorld());
+		}
+		
+	}
+	/** Return the current physics world **/
+	public World getWorld(){
+		return m_world;
+	}
+	
+	/** Make the runner visualization update **/
+	private void VisRunnerUpdate(){
+		visRun.repaint();
 	}
 	
 	/* Dist/phys steps */
@@ -94,28 +112,41 @@ public class QWOPInterface {
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,false, false, false);
 				m_world.step(timestep, veliterations, positerations);
-				if (OptionsHolder.visOn) Thread.sleep((long)delaymillis);
+				if (visOn){
+					VisRunnerUpdate();
+					Thread.sleep((long)delaymillis);
+					System.out.println('d');
+				}
 			}
 			break;
 		case 2: // W-O keys down
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,true, true, false);
 				m_world.step(timestep, veliterations, positerations);
-				if (OptionsHolder.visOn) Thread.sleep((long)delaymillis);
+				if (visOn){
+					VisRunnerUpdate();
+					Thread.sleep((long)delaymillis);
+				}
 			}
 			break;
 		case 3: //Another pause.
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,false, false, false);
 				m_world.step(timestep, veliterations, positerations);
-				if (OptionsHolder.visOn) Thread.sleep((long)delaymillis);
+				if (visOn){
+					VisRunnerUpdate();
+					Thread.sleep((long)delaymillis);
+				}
 			}
 			break;
 		case 4: // Q-P keys down.
 			for (int j = 0; j<delay; j++){
 				game.everyStep(true,false, false, true);
 				m_world.step(timestep, veliterations, positerations);
-				if (OptionsHolder.visOn) Thread.sleep((long)delaymillis);
+				if (visOn){
+					VisRunnerUpdate();
+					Thread.sleep((long)delaymillis);
+				}
 			}
 			break;
 		default:

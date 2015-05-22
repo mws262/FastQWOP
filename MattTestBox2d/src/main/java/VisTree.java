@@ -40,6 +40,7 @@ public class VisTree extends JFrame{
 		"Ctrl-click hides a branch.",
 		"Alt-scroll spaces or contracts branches hovered over.",
 		"S turns score display on and off (slows graphics).",
+		"Meta-S turns value display on (slows graphics)",
 		"P pauses the game's graphics (speed boost?)."
 	};
 	
@@ -59,16 +60,23 @@ public class VisTree extends JFrame{
 	  /** Min and max scaling of end costs -- gotten by taking 2.5 std devs out on either side of the mean final costs **/
 	  public float minScaling = 0;
 	  public float maxScaling = 0;
+	  
+	  public float valMinScaling = 0;
+	  public float valMaxScaling = 0;
+	  
 	  public int maxDepth = 2; //By default, using this for scaling, but should be changed from above.
 	  
 	  /** show score numbers by each end branch **/
   	  public boolean scoreDisplay = false;
-	  
+	  public boolean valDisplay = false;
   	  /** Temp put drawing on hold for speed. Background calculations for node positions still happen though, so not fully efficient **/
   	  public boolean pauseDraw = false;
 	  
 	  //Internal thing to make sure that the data is there before I start to draw. 
 	  private boolean startDrawing = false;
+	  
+	  /** This lets us run paths for viewing purposes during a normal search **/
+	  SinglePathViewer viewSingle = new SinglePathViewer();
 	  
 	  //hold the time that the last drawing happened:
 	  long lastTime;
@@ -153,6 +161,7 @@ public class VisTree extends JFrame{
   	  }
 
       public void paintComponent(Graphics g){
+			viewSingle.RunQueued();
     	  if(!pauseDraw){ //Temporarily stop drawing for speed.
     	   Graphics2D g2 = (Graphics2D) g; //Casting to a graphics 2d object for more control.
     	   g2.setStroke(new BasicStroke(0.1f));
@@ -179,11 +188,19 @@ public class VisTree extends JFrame{
 	      		g2.drawLine(Lines.LineList[i][0], Lines.LineList[i][1], Lines.LineList[i][2], Lines.LineList[i][3]);
 	      		
      			if (scoreDisplay && Lines.NodeList[i][1].DeadEnd){
-     				g2.setColor(getScoreColor(-Lines.NodeList[i][1].rawScore));
+
+     				g2.setColor(getScoreColor(minScaling,maxScaling,-Lines.NodeList[i][1].rawScore));
      				g2.setFont(scaleFont.InterpolateFont(maxScaling,minScaling,-Lines.NodeList[i][1].rawScore*OptionsHolder.sizeFactor));
       				g2.drawString(df.format(Lines.NodeList[i][1].rawScore), (int)Lines.NodeList[i][1].nodeLocation[0], (int)Lines.NodeList[i][1].nodeLocation[1]);
       				g2.setColor(Color.BLACK);
-//     				System.out.println(maxScaling + "" + minScaling);
+      			}else if (valDisplay && Lines.NodeList[i][1].DeadEnd){
+     				if(Lines.NodeList[i][1].value != 0){
+	     				g2.setColor(getScoreColor(valMinScaling, valMaxScaling, Lines.NodeList[i][1].value));
+	     				g2.setFont(scaleFont.InterpolateFont(valMaxScaling,valMinScaling,Lines.NodeList[i][1].value*OptionsHolder.sizeFactor));
+	      				g2.drawString(df.format(Lines.NodeList[i][1].value), (int)Lines.NodeList[i][1].nodeLocation[0], (int)Lines.NodeList[i][1].nodeLocation[1]);
+	      				g2.setColor(Color.BLACK);
+     				}
+      				
       			}
 	      		
 	      		if(Lines.LabelOn[i]){ //Draw the label if it's turned on. NOTE: Change nodelist index back to zero for it to only display one action instead of all child node ones. Accidental change that turned out nicely.
@@ -233,10 +250,10 @@ public class VisTree extends JFrame{
       }
       
       /** Convert a cost too a red-green color based on the std deviation sorta-full-scale **/
-      public Color getScoreColor(float cost)
+      public Color getScoreColor(float minScale, float maxScale, float cost)
       {
     	  
-    	  float scaledCost = (cost - minScaling)/(maxScaling - minScaling); //Scale the cost between 0 and 1 based on the std dev scaling. 
+    	  float scaledCost = (cost - minScale)/(maxScale - minScale); //Scale the cost between 0 and 1 based on the std dev scaling. 
     	  if(scaledCost >1) scaledCost = 1;
     	  if(scaledCost <0) scaledCost = 0;
     	  scaledCost = -(scaledCost-0.5f)+0.5f;
@@ -271,6 +288,10 @@ public class VisTree extends JFrame{
 				focusedNode.hiddenNode = true;
 				focusedNode.ParentNode.RemoveChild(focusedNode); //Try also just killing it from the tree search too.
 			}
+		}else if (arg0.isMetaDown()){
+			focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
+			viewSingle.AddQueuedTrial(focusedNode);
+			
 		}
 	}
 	@Override
@@ -357,7 +378,13 @@ public class VisTree extends JFrame{
 		
 		switch(arg0.getKeyChar()){
 		case 's': // toggle the score text at the end of all branches
-			scoreDisplay = !scoreDisplay;
+			if (arg0.isMetaDown()){
+				valDisplay = !valDisplay;
+				scoreDisplay = false;
+			}else{
+				scoreDisplay = !scoreDisplay;
+				valDisplay = false;
+			}
 			break;
 		case 'p': //Pause visualization.
 			pauseDraw = !pauseDraw;

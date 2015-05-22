@@ -45,7 +45,7 @@ public class ExhaustiveQwop {
 		int counter = 0;
 		boolean failed = false;
 		
-		QWOPHandler.NewGame(); //Get a new game going.
+		QWOPHandler.NewGame(OptionsHolder.visOn); //Get a new game going.
 		int[] oldActions = {};
 		int[] bufferNew = new int[50]; //plenty big for storing new values since last fall.
 		Arrays.fill(bufferNew, -1);
@@ -78,7 +78,7 @@ public class ExhaustiveQwop {
 				}
 			
 				//If we failed earlier, we'll run all those old actions we figured out above.
-				QWOPHandler.NewGame(); //Start a new game.
+				QWOPHandler.NewGame(OptionsHolder.visOn); //Start a new game.
 				try {
 					QWOPHandler.DoSequence(oldActions);
 				} catch (InterruptedException e) {
@@ -86,7 +86,7 @@ public class ExhaustiveQwop {
 				}
 				failed = false;
 			}else if(failed){  //THIS IS FOR MARCHING DOWN THE TREE WHEN RESETTING>
-				QWOPHandler.NewGame(); //Start a new game.
+				QWOPHandler.NewGame(OptionsHolder.visOn); //Start a new game.
 				failed = false;
 			}
 			
@@ -109,6 +109,12 @@ public class ExhaustiveQwop {
 				}else if(NextNode.TreeDepth == 8){ //The end of the periodic part
 					EndState.CaptureState();
 					NewError = EndState.Compare(BeginningState);
+					NextNode.value = NewError; //Using the periodic error as the value for now.
+					if(NewError>visnodes.valMaxScaling){ //TEMPORARY FOR GIVING THE VISUALIZER BOUNDS.
+						visnodes.valMaxScaling = NewError;
+					}else if(NewError < visnodes.valMinScaling){
+						visnodes.valMinScaling = NewError;
+					}
 					if (NewError < LeastError){
 						
 						if (verbose){

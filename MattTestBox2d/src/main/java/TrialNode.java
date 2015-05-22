@@ -9,7 +9,7 @@ public class TrialNode {
 	/** Differential score (thisScore-prevStateScore) **/
 	private float diffScore = 0;
 	/**Estimated value of this node in a global sense (UNIMPLEMENTED) **/
-	private float value = 0; //TODO
+	public float value = 0; //TODO
 	
 	/** Is this state a dead end (based on failures) **/
 	boolean DeadEnd = false;
