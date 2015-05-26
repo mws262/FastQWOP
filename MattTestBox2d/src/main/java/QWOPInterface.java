@@ -115,7 +115,6 @@ public class QWOPInterface {
 				if (visOn){
 					VisRunnerUpdate();
 					Thread.sleep((long)delaymillis);
-					System.out.println('d');
 				}
 			}
 			break;

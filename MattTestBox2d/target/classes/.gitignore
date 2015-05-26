@@ -1,10 +1,5 @@
 /META-INF/
-/ColorKeeper.class
-/Analyst.class
-/FontScaler.class
-/SinglePathViewer.class
-/VisRunner.class
-/CheckBoxListener.class
-/DrawPane.class
-/VisTree$DrawPane.class
-/VisTree.class
+/ScatterPlotDemo1.class
+/SampleXYDataset2.class
+/TempHolder.class
+/QWOPPlotData.class

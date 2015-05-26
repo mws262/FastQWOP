@@ -59,7 +59,11 @@ public class ExhaustiveQwop {
 		
 		// Node visualization stuff
 		VisTree visnodes = new VisTree(RootNode);
+		DataGrabber saveInfo = new DataGrabber(50); //Argument is how many times we get to 8th level do we have between file writes.
+		Scheduler scheduled = new Scheduler();
+		scheduled.addTask(saveInfo);
 		
+		ScatterPlotDemo1.Make();
 		
 		while (!finished){
 
@@ -110,6 +114,13 @@ public class ExhaustiveQwop {
 					EndState.CaptureState();
 					NewError = EndState.Compare(BeginningState);
 					NextNode.value = NewError; //Using the periodic error as the value for now.
+					saveInfo.AddNonFailedNode(NextNode);
+					scheduled.Iterate();
+					if (counter%100 == 0 ){
+					ScatterPlotDemo1.dataset.GiveX(saveInfo.x);
+					ScatterPlotDemo1.dataset.GiveY(saveInfo.y);
+					ScatterPlotDemo1.Make();
+					}
 					if(NewError>visnodes.valMaxScaling){ //TEMPORARY FOR GIVING THE VISUALIZER BOUNDS.
 						visnodes.valMaxScaling = NewError;
 					}else if(NewError < visnodes.valMinScaling){
