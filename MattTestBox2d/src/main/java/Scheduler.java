@@ -26,7 +26,7 @@ public class Scheduler {
 	private void CheckTasks(){
 		
 		for (Schedulable task : TaskList){
-			if (count%task.interval == 0 && count != 0){
+			if (task.getInterval() != 0 && count%task.getInterval() == 0 && count != 0){
 				task.DoScheduled();
 			}
 			task.DoEvery();

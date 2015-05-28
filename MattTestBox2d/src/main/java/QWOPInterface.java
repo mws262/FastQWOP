@@ -29,6 +29,8 @@ public class QWOPInterface {
 	
 	public VisRunner visRun;
 	
+	private Scheduler StepSched;
+	
 	public QWOPInterface() {
 	}
 	
@@ -56,9 +58,9 @@ public class QWOPInterface {
 		return m_world;
 	}
 	
-	/** Make the runner visualization update **/
-	private void VisRunnerUpdate(){
-		visRun.repaint();
+	/** add a scheduler which is iterated every phys step **/
+	public void addScheduler(Scheduler StepSched){
+		this.StepSched = StepSched;
 	}
 	
 	/* Dist/phys steps */
@@ -112,9 +114,9 @@ public class QWOPInterface {
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,false, false, false);
 				m_world.step(timestep, veliterations, positerations);
-				if (visOn){
-					VisRunnerUpdate();
-					Thread.sleep((long)delaymillis);
+				if (StepSched != null){
+					StepSched.Iterate();
+//					Thread.sleep((long)delaymillis);
 				}
 			}
 			break;
@@ -122,9 +124,9 @@ public class QWOPInterface {
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,true, true, false);
 				m_world.step(timestep, veliterations, positerations);
-				if (visOn){
-					VisRunnerUpdate();
-					Thread.sleep((long)delaymillis);
+				if (StepSched != null){
+					StepSched.Iterate();
+//					Thread.sleep((long)delaymillis);
 				}
 			}
 			break;
@@ -132,9 +134,9 @@ public class QWOPInterface {
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,false, false, false);
 				m_world.step(timestep, veliterations, positerations);
-				if (visOn){
-					VisRunnerUpdate();
-					Thread.sleep((long)delaymillis);
+				if (StepSched != null){
+					StepSched.Iterate();
+//					Thread.sleep((long)delaymillis);
 				}
 			}
 			break;
@@ -142,9 +144,9 @@ public class QWOPInterface {
 			for (int j = 0; j<delay; j++){
 				game.everyStep(true,false, false, true);
 				m_world.step(timestep, veliterations, positerations);
-				if (visOn){
-					VisRunnerUpdate();
-					Thread.sleep((long)delaymillis);
+				if (StepSched != null){
+					StepSched.Iterate();
+//					Thread.sleep((long)delaymillis);
 				}
 			}
 			break;

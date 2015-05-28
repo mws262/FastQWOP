@@ -1,13 +1,31 @@
+/**
+ * 
+ * Things that all my schedulable tasks must have.
+ * 
+ * @author Matt
+ *
+ */
 
-public abstract class Schedulable {
+public interface Schedulable {
 	
-	final int interval;
-	public Schedulable(int scheduledInterval) {
-		this.interval = scheduledInterval;
-	}
+	/** After how many iterations do we execute the DoScheduled method **/
+	public void setInterval(int interval);
 	
-	abstract void DoScheduled();
+	/** Return what the interval is **/
+	public int getInterval();
 	
-	abstract void DoEvery();
+	/** Do the stuff that is only scheduled to happen every (interval) iterations **/
+	public void DoScheduled();
+	
+	/** Things that should happen every iteration **/
+	public void DoEvery();
+	
+	/** Make it execute now regardless **/
+	public void DoNow();
+	
+	/** Disable the action **/
+	public void Disable();
+	
+	
 
 }

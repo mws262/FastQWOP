@@ -10,7 +10,7 @@ public class OptionsHolder {
 	/** Report info as the search is running? **/
 	public static boolean verboseOn = true;
 	public static int verboseIncrement = 1000; // How many games between outputs?
-	
+	public static boolean DataToFile = false;
 	
 	/* SEARCH OPTIONS */
 	/** Repeat actions to attempt periodic motion? **/

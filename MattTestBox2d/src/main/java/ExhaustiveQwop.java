@@ -19,7 +19,7 @@ public class ExhaustiveQwop {
 		// TODO Auto-generated constructor stub
 	}
 	
-	public static void main(String args[]){
+	public static void main(String args[]) throws SecurityException, IllegalArgumentException, NoSuchFieldException, IllegalAccessException{
 		
 		boolean finished = false;
 		
@@ -58,12 +58,27 @@ public class ExhaustiveQwop {
 		
 		
 		// Node visualization stuff
-		VisTree visnodes = new VisTree(RootNode);
-		DataGrabber saveInfo = new DataGrabber(50); //Argument is how many times we get to 8th level do we have between file writes.
-		Scheduler scheduled = new Scheduler();
-		scheduled.addTask(saveInfo);
+//		VisTree visnodes = new VisTree(RootNode);
+		DataGrabber saveInfo = new DataGrabber(); //Argument is how many times we get to 8th level do we have between file writes.
+		saveInfo.setInterval(50);
+		Scheduler Every8 = new Scheduler(); //This scheduler gets incremented every time we find a path that makes it out to 8 without falling.
+		Every8.addTask(saveInfo);
 		
-		ScatterPlotDemo1.Make();
+		VisMaster VisRoot = new VisMaster(QWOPHandler,RootNode,saveInfo);
+		Scheduler EveryEnd = new Scheduler(); //This scheduler gets incremented every time we fail.
+		VisRoot.setInterval(1);
+		VisRoot.TreeMaker.setInterval(1);
+		VisRoot.DataMaker.setInterval(1000);
+		
+		EveryEnd.addTask(VisRoot);
+		EveryEnd.addTask(VisRoot.TreeMaker);
+		EveryEnd.addTask(VisRoot.DataMaker);
+
+		
+		Scheduler EveryPhys = new Scheduler();
+		VisRoot.RunMaker.setInterval(1);
+		EveryPhys.addTask(VisRoot.RunMaker);
+		QWOPHandler.addScheduler(EveryPhys);
 		
 		while (!finished){
 
@@ -115,17 +130,17 @@ public class ExhaustiveQwop {
 					NewError = EndState.Compare(BeginningState);
 					NextNode.value = NewError; //Using the periodic error as the value for now.
 					saveInfo.AddNonFailedNode(NextNode);
-					scheduled.Iterate();
-					if (counter%100 == 0 ){
-					ScatterPlotDemo1.dataset.GiveX(saveInfo.x);
-					ScatterPlotDemo1.dataset.GiveY(saveInfo.y);
-					ScatterPlotDemo1.Make();
-					}
-					if(NewError>visnodes.valMaxScaling){ //TEMPORARY FOR GIVING THE VISUALIZER BOUNDS.
-						visnodes.valMaxScaling = NewError;
-					}else if(NewError < visnodes.valMinScaling){
-						visnodes.valMinScaling = NewError;
-					}
+					Every8.Iterate();
+//					if (counter%100 == 0 ){
+//					ScatterPlotDemo1.dataset.GiveX(saveInfo.x);
+//					ScatterPlotDemo1.dataset.GiveY(saveInfo.y);
+//					ScatterPlotDemo1.Make();
+//					}
+//					if(NewError>visnodes.valMaxScaling){ //TEMPORARY FOR GIVING THE VISUALIZER BOUNDS.
+//						visnodes.valMaxScaling = NewError;
+//					}else if(NewError < visnodes.valMinScaling){
+//						visnodes.valMinScaling = NewError;
+//					}
 					if (NewError < LeastError){
 						
 						if (verbose){
@@ -181,12 +196,13 @@ public class ExhaustiveQwop {
 				CostHolder.add(-CurrentNode.rawScore);
 				if (CurrentNode.TreeDepth>maxDepth) {
 					maxDepth = CurrentNode.TreeDepth; //Update the tree depth if we manage to go deeper.
-					visnodes.maxDepth = maxDepth;
+//					visnodes.maxDepth = maxDepth;
 				}
 				//Plot the new tree nodes if this setting is on:
 				if(OptionsHolder.treeVisOn){
-					visnodes.ScaleCosts(CostHolder); //Give the visTree all the end costs for scaling coloring.
-					visnodes.UpdateTree();
+//					visnodes.ScaleCosts(CostHolder); //Give the visTree all the end costs for scaling coloring.
+//					visnodes.UpdateTree();
+					EveryEnd.Iterate();
 				}
 				
 				//For diagnostics, keep track of how many potential path have been eliminated by failures.

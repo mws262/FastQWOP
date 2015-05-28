@@ -29,8 +29,9 @@ import java.awt.event.MouseWheelListener;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 
-public class VisTree extends JFrame{
+public class TreePaneMaker implements Schedulable{
 
+	private int interval = 1;
 	
 	public static final String[] instructions = {
 		"Left click & drag pans.",
@@ -50,9 +51,6 @@ public class VisTree extends JFrame{
 	
 	  /** This is the root node from which the tree will be built out of **/
 	  public TrialNode root;
-	
-	  /** Jpanel **/
-	  public DrawPane panel;
 	  
 	  /** Object which holds current line data **/
 	  LineHolder Lines;
@@ -75,8 +73,9 @@ public class VisTree extends JFrame{
 	  //Internal thing to make sure that the data is there before I start to draw. 
 	  private boolean startDrawing = false;
 	  
-	  /** This lets us run paths for viewing purposes during a normal search **/
-	  SinglePathViewer viewSingle = new SinglePathViewer();
+	  /** The actual pane made by this maker **/
+	  public TreePane TreePanel;
+	  
 	  
 	  //hold the time that the last drawing happened:
 	  long lastTime;
@@ -89,25 +88,20 @@ public class VisTree extends JFrame{
 	  Font smallFont = new Font("Ariel",style, 14);
 	  
 	  public FontScaler scaleFont = new FontScaler(3,30,21);
+	  
+	  
 
 	//When creating a new visualizer, wee need to know the root node so we can run down the tree and draw it.
-	public VisTree(TrialNode root) {
+	public TreePaneMaker(TrialNode root) {
 		this.root = root;
-        panel = new DrawPane();
+		TreePanel = new TreePane();
 
         lastTime = System.currentTimeMillis(); //Grab the starting system time.
-        this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
-        this.setPreferredSize(new Dimension(OptionsHolder.windowWidth, OptionsHolder.windowHeight));
-        this.setContentPane(panel);
-        this.pack();
-        this.setVisible(true); 
-        panel.requestFocus();
         
 	}
 	
 	/** Call this externally to force a full update of the tree. This will go through all nodes, collect lines, and tell the graphics to update **/
-	public void UpdateTree(){
+	public void update(){
 		startDrawing = true;
 		if(root.PotentialChildren == 1){ //If the root node only has one child, then we're just going to move down and call the next node root for drawing purposes.
 			root = root.GetChild(0);
@@ -115,8 +109,8 @@ public class VisTree extends JFrame{
 
 		 Lines = root.GetNodeLines();
 		 if (!Lines.equals(null)){
-			panel.setTree(Lines);
-		 	panel.repaint();
+			TreePanel.setTree(Lines);
+		 	TreePanel.repaint();
 		 }
 	}
 	
@@ -141,7 +135,7 @@ public class VisTree extends JFrame{
 	}
 
     /** Jpanel inside the jframe **/
-    class DrawPane extends JPanel implements MouseListener, MouseMotionListener, MouseWheelListener,KeyListener{
+    class TreePane extends JPanel implements MouseListener, MouseMotionListener, MouseWheelListener,KeyListener{
   	  LineHolder Lines;
   	  boolean mouseTrack = false;
 	  DecimalFormat df = new DecimalFormat("#.#");
@@ -153,7 +147,7 @@ public class VisTree extends JFrame{
   	  int mouseY = 0;
   	  TrialNode focusedNode; //Node that's being selected, clicked, etc.
   	  
-  	  public DrawPane(){
+  	  public TreePane(){
   	  	  addMouseListener(this);
   	  	  addMouseMotionListener(this);
   	  	  addMouseWheelListener(this);
@@ -161,7 +155,7 @@ public class VisTree extends JFrame{
   	  }
 
       public void paintComponent(Graphics g){
-			viewSingle.RunQueued();
+//			viewSingle.RunQueued();
     	  if(!pauseDraw){ //Temporarily stop drawing for speed.
     	   Graphics2D g2 = (Graphics2D) g; //Casting to a graphics 2d object for more control.
     	   g2.setStroke(new BasicStroke(0.1f));
@@ -212,8 +206,9 @@ public class VisTree extends JFrame{
 	      	
 
 	  		  //Write the instructions up too:
-	  		  g.setColor(Color.WHITE);
-	  		  g.fillRect(0, OptionsHolder.windowHeight-instructions.length*25-50, 400, OptionsHolder.windowHeight);
+//	  		  g.setColor(Color.WHITE);
+//	  		  g.setColor(new Color(1f,1f,1f,0.01f));
+//	  		  g.fillRect(0, OptionsHolder.windowHeight-instructions.length*25-50, 400, OptionsHolder.windowHeight);
 	  		  g.setColor(Color.BLACK);
 	  		  g.setFont(smallFont);
 	  		  for (int i = 0; i<instructions.length; i++){
@@ -225,7 +220,8 @@ public class VisTree extends JFrame{
     	  }
   		  //Write how many games have been played:
     	  //note, still displays even when graphics are basically paused.
-  		  g.setColor(new Color(1f,1f,1f,0.01f));
+  		  g.setColor(Color.WHITE);
+  		g.setColor(new Color(1f,1f,1f,0.8f));
   		  g.fillRect(0,0,450,100);
   		  g.setColor(Color.BLACK);
   		  g.setFont(bigFont);
@@ -290,7 +286,7 @@ public class VisTree extends JFrame{
 			}
 		}else if (arg0.isMetaDown()){
 			focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
-			viewSingle.AddQueuedTrial(focusedNode);
+//			viewSingle.AddQueuedTrial(focusedNode);
 			
 		}
 	}
@@ -403,4 +399,40 @@ public class VisTree extends JFrame{
 		
 	}
    }
+
+	@Override
+	public void setInterval(int interval) {
+		this.interval = interval;
+		
+	}
+
+	@Override
+	public int getInterval() {
+		// TODO Auto-generated method stub
+		return interval;
+	}
+
+	@Override
+	public void DoScheduled() {
+		update();
+		
+	}
+
+	@Override
+	public void DoEvery() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void DoNow() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void Disable() {
+		// TODO Auto-generated method stub
+		
+	}
 }

@@ -1,5 +1,12 @@
+/DataPaneMaker.class
 /META-INF/
-/ScatterPlotDemo1.class
-/SampleXYDataset2.class
-/TempHolder.class
-/QWOPPlotData.class
+/VisTree2$DrawPane.class
+/VisTree2.class
+/TreePaneMaker$DrawPane.class
+/TreePaneMaker.class
+/TreePaneMaker$TreePane.class
+/RunnerPaneMaker.class
+/RunnerPane.class
+/VisMaster$1.class
+/TabbedPane.class
+/TabbedPaneActivator.class
