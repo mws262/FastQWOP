@@ -104,7 +104,7 @@ class RunnerPane extends JPanel{
 	Vec2 b = new Vec2(0,0);
 	Vec2 c = new Vec2(0,0);
 	float scaling = 10f;
-	int offsetx0 = 500;
+	int offsetx0 = 250;
 	int offsetx = offsetx0;
 	int offsety = 800;
 	float flipud = 1f;
@@ -147,10 +147,9 @@ class RunnerPane extends JPanel{
 			    		
 			    		a = Transform.mul(trans, newshape.getVertex(k));
 			    		b = Transform.mul(trans, newshape.getVertex((k+1) % (newshape.getVertexCount())));
-			    		
 			    		g.drawLine((int)(fliplr*scaling*a.x)+offsetx, (int)(flipud*scaling*a.y)+offsety, (int)(fliplr*scaling*b.x)+offsetx, (int)(flipud*scaling*b.y)+offsety);			    		
 			    	}
-			    	
+			    																										
 	    		}else if (newfixture.getType() == ShapeType.CIRCLE){
 	    			CircleShape newshape = (CircleShape)newfixture.getShape();
 	    			headpos = (int)(-fliplr*scaling*newbody.getWorldCenter().x);

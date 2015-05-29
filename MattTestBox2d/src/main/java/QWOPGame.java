@@ -896,18 +896,7 @@ public class QWOPGame extends JFrame{
     LElbowJDef.motorSpeed = 10f; //TODO: investigate further  
     LElbowJ = (RevoluteJoint)getWorld().createJoint(LElbowJDef);
     
-    
-    
-//if (visOn || (plot == null)){
-////	  GET GRAPHICS UP AND RUNNING:
-//	  JPanel panel = new JPanel();
-//	  JFrame frame = new JFrame();
-//	  plot = new DrawPane(getWorld(),options);
-//	  setContentPane(plot);
-//	  setVisible(true);
-//	  setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-//	  setSize(1000,1000);
-//}
+
 
 
   } 

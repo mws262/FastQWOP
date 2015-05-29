@@ -24,6 +24,9 @@ public class TrialNode {
 	/** Node which leads up to this node. **/
 	public final TrialNode ParentNode; // The parent action may not be modified.
 	
+	/** What is the state after taking this node's action? **/
+	public StateHolder NodeState;
+	
 	/** Keep track of where this node lies in the sequence **/
 	private final int NodeSequence; 
 	
@@ -90,7 +93,6 @@ public class TrialNode {
 		nodeLocation[0] = OptionsHolder.growthCenter[0];
 		nodeLocation[1] = OptionsHolder.growthCenter[1];
 	}
-	
 	
 	///// Tree visualization methods begin /////
 	
@@ -243,12 +245,28 @@ public class TrialNode {
 	
 	///// Tree visualization methods end ///////
 	
+	/** Give this node a qwopinterface and capture the state **/
+	public void CaptureState(QWOPInterface QWOPHandler){
+		NodeState = new StateHolder(QWOPHandler);
+		NodeState.CaptureState();
+	}
 	/** **/
-	public void InjectNode(){
-		
-		
+	public void InjectNode(){	
 	}
 	
+	/** Get the sequence of actions up to, and including this node **/
+	public int[] getSequence(){
+		System.out.println(TreeDepth);
+		int[] sequence = new int[TreeDepth];
+		TrialNode current = this;
+		sequence[TreeDepth-1] = current.ControlAction;
+		for (int i =TreeDepth-2; i>=0; i--){
+			current = current.ParentNode;
+			sequence[i] = current.ControlAction;
+		}
+		return sequence;
+		
+	}
 	/** Return the control action (NOT the index of the control) **/
 	public int EchoControl(){
 		return ControlAction;
@@ -353,5 +371,12 @@ public class TrialNode {
 	public void SetScore(float score){
 		rawScore = score;
 		diffScore = rawScore - ParentNode.rawScore;
+	}
+	
+	/** WARNING: This is the index according to this one's list. NOT the control index. Use with caution. **/
+	public int GetChildIndex(TrialNode child){
+		
+		return ChildNodes.indexOf(child);	//TODO: do I need error checking on this?
+
 	}
 }

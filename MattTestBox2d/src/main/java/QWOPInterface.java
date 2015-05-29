@@ -1,5 +1,11 @@
 import java.util.Arrays;
+
+import org.jbox2d.callbacks.ContactImpulse;
+import org.jbox2d.callbacks.ContactListener;
+import org.jbox2d.collision.Manifold;
+import org.jbox2d.dynamics.Fixture;
 import org.jbox2d.dynamics.World;
+import org.jbox2d.dynamics.contacts.Contact;
 
 
 public class QWOPInterface {
@@ -22,8 +28,8 @@ public class QWOPInterface {
 	
 	
 	public boolean repeatSequence = false;
-	public int prefixLength = 4; //How many elements lead up to the repeated portion.
-	public int periodicLength = 4; // How many elements are the repeated portion.
+	public int prefixLength = OptionsHolder.prefixLength; //How many elements lead up to the repeated portion.
+	public int periodicLength = OptionsHolder.periodicLength; // How many elements are the repeated portion.
 	
 	public boolean visOn = false;
 	
@@ -51,7 +57,7 @@ public class QWOPInterface {
 		}else if(visOn){
 			visRun.SwitchWorlds(game.getWorld());
 		}
-		
+		m_world.setContactListener(new CollisionListener(game));
 	}
 	/** Return the current physics world **/
 	public World getWorld(){
@@ -116,7 +122,6 @@ public class QWOPInterface {
 				m_world.step(timestep, veliterations, positerations);
 				if (StepSched != null){
 					StepSched.Iterate();
-//					Thread.sleep((long)delaymillis);
 				}
 			}
 			break;
@@ -126,7 +131,6 @@ public class QWOPInterface {
 				m_world.step(timestep, veliterations, positerations);
 				if (StepSched != null){
 					StepSched.Iterate();
-//					Thread.sleep((long)delaymillis);
 				}
 			}
 			break;
@@ -136,7 +140,6 @@ public class QWOPInterface {
 				m_world.step(timestep, veliterations, positerations);
 				if (StepSched != null){
 					StepSched.Iterate();
-//					Thread.sleep((long)delaymillis);
 				}
 			}
 			break;
@@ -146,7 +149,6 @@ public class QWOPInterface {
 				m_world.step(timestep, veliterations, positerations);
 				if (StepSched != null){
 					StepSched.Iterate();
-//					Thread.sleep((long)delaymillis);
 				}
 			}
 			break;
@@ -173,4 +175,46 @@ public class QWOPInterface {
 
 		return Cost(); //Return the cost associated with the new position.
 	}
+}
+/** Listens for collisions involving lower arms and head (implicitly with the ground) **/
+class CollisionListener implements ContactListener{
+
+	QWOPGame game;
+	public CollisionListener(QWOPGame game){
+		this.game = game;
+	}
+	@Override
+	public void beginContact(Contact contact) {
+		Fixture fixtureA = contact.getFixtureA();
+		Fixture fixtureB = contact.getFixtureB();
+
+		if(fixtureA.m_body.equals(game.HeadBody) ||
+		fixtureB.m_body.equals(game.HeadBody) ||
+		fixtureA.m_body.equals(game.LLArmBody) ||
+		fixtureB.m_body.equals(game.LLArmBody) ||
+		fixtureA.m_body.equals(game.RLArmBody) ||
+		fixtureB.m_body.equals(game.RLArmBody)){
+			
+		}
+			
+	}
+
+	@Override
+	public void endContact(Contact contact) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void preSolve(Contact contact, Manifold oldManifold) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void postSolve(Contact contact, ContactImpulse impulse) {
+		// TODO Auto-generated method stub
+		
+	}
+
 }

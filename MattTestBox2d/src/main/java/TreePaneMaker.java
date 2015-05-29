@@ -39,6 +39,7 @@ public class TreePaneMaker implements Schedulable{
 		"Right click & drag rotates individual branches",
 		"Alt-click labels the control.",
 		"Ctrl-click hides a branch.",
+		"Meta-click selects a point for state viewer.",
 		"Alt-scroll spaces or contracts branches hovered over.",
 		"S turns score display on and off (slows graphics).",
 		"Meta-S turns value display on (slows graphics)",
@@ -51,7 +52,7 @@ public class TreePaneMaker implements Schedulable{
 	
 	  /** This is the root node from which the tree will be built out of **/
 	  public TrialNode root;
-	  
+	  private SnapshotPaneMaker SnapshotPane;
 	  /** Object which holds current line data **/
 	  LineHolder Lines;
 	  
@@ -72,6 +73,8 @@ public class TreePaneMaker implements Schedulable{
 	  
 	  //Internal thing to make sure that the data is there before I start to draw. 
 	  private boolean startDrawing = false;
+	  
+
 	  
 	  /** The actual pane made by this maker **/
 	  public TreePane TreePanel;
@@ -113,6 +116,10 @@ public class TreePaneMaker implements Schedulable{
 		 	TreePanel.repaint();
 		 }
 	}
+	
+    public void setSnapshotPane(SnapshotPaneMaker snap){
+  	  SnapshotPane = snap;
+    }
 	
 	/** finds the standard deviation of all final costs to make a nice scaling for coloring. std dev to avoid outlier skewing **/
 	public void ScaleCosts(ArrayList<Float> costs){
@@ -172,6 +179,13 @@ public class TreePaneMaker implements Schedulable{
 
     		  }
     		  g.fillRect(0, 0, OptionsHolder.windowWidth,OptionsHolder.windowHeight);
+    		  
+    		  
+    		  if(focusedNode != null){
+    			  g.setColor(Color.RED);
+    			  g.fillRect((int)focusedNode.nodeLocation[0]-5, (int)focusedNode.nodeLocation[1]-5, 10,10);   			  	  
+    		  }
+    		  
     		  
 	      	for (int i = 0; i<Lines.numLines; i++){
 	      		if(Lines.LineList[i][2] == 0 && Lines.LineList[i][3] == 0){ //If the x2 and y2 are 0, we've come to the end of actual lines.
@@ -244,6 +258,7 @@ public class TreePaneMaker implements Schedulable{
       public void setTree(LineHolder Lines){
       	this.Lines = Lines;
       }
+
       
       /** Convert a cost too a red-green color based on the std deviation sorta-full-scale **/
       public Color getScoreColor(float minScale, float maxScale, float cost)
@@ -286,7 +301,9 @@ public class TreePaneMaker implements Schedulable{
 			}
 		}else if (arg0.isMetaDown()){
 			focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
-//			viewSingle.AddQueuedTrial(focusedNode);
+			if (SnapshotPane != null){
+				SnapshotPane.setNode(focusedNode);
+			}
 			
 		}
 	}
@@ -369,9 +386,107 @@ public class TreePaneMaker implements Schedulable{
 		
 	}
 
+	
+	// The following 2 methods are probably too complicated. when you push the arrow at the edge of one branch, this tries to jump to the nearest next branch node at the same depth.
+	/** Called by key listener to change our focused node to the next adjacent one in the +1 or -1 direction **/
+	private void arrowSwitchNode(int direction,int depth){
+		//Stupid way of getting this one's index according to its parent.
+		if(focusedNode != null){
+			int thisIndex = focusedNode.ParentNode.GetChildIndex(focusedNode);
+			System.out.println(focusedNode.ParentNode.GetChildIndex(focusedNode));
+			//This set of logicals eliminates the edge cases, then takes the proposed action as default
+			if (thisIndex == 0 && direction == -1){ //We're at the lowest index of this node and must head to a new parent node.
+				ArrayList<TrialNode> blacklist = new ArrayList<TrialNode>(); //Keep a blacklist of nodes that already proved to be duds.
+				blacklist.add(focusedNode);
+				nextOver(focusedNode.ParentNode,blacklist,1,direction,focusedNode.ParentNode.GetChildIndex(focusedNode));
+				
+			}else if (thisIndex == focusedNode.ParentNode.NumChildren()-1 && direction == 1){ //We're at the highest index of this node and must head to a new parent node.
+				ArrayList<TrialNode> blacklist = new ArrayList<TrialNode>();
+				blacklist.add(focusedNode);
+				nextOver(focusedNode.ParentNode,blacklist, 1,direction,focusedNode.ParentNode.GetChildIndex(focusedNode));
+				
+			}else{ //Otherwise we can just switch nodes within the scope of this parent.
+				focusedNode = (focusedNode.ParentNode.GetChild(thisIndex+direction));
+			}
+			
+			
+			//These logicals just take the proposed motion (or not) and ignore any edges.
+			if(depth == 1 && focusedNode.NumChildren()>0){ //Go further down the tree if this node has children
+				focusedNode = focusedNode.GetChild(0);
+			}else if(depth == -1 && focusedNode.TreeDepth>1){ //Go up the tree if this is not root.
+				focusedNode = focusedNode.ParentNode;
+			}
+			SnapshotPane.setNode(focusedNode);
+			SnapshotPane.update();
+			repaint();
+		}
+	}
+	
+	/** Take a node back a layer. Don't return to node past. Try to go back out by the deficit depth amount in the +1 or -1 direction left/right **/
+	private boolean nextOver(TrialNode current, ArrayList<TrialNode> blacklist, int deficitDepth, int direction,int prevIndexAbove){
+		boolean success = false;
+		//TERMINATING CONDITIONS-- fail quietly if we get back to root with nothing. Succeed if we get back to the same depth we started at.
+		if (deficitDepth == 0){ //We've successfully gotten back to the same level. Great.
+			focusedNode = current;
+			return true;
+		}else if(current.TreeDepth == 0){
+			return true; // We made it back to the tree's root without any success. Just return.
+		
+		}else{
+			
+			//CCONDITIONS WE NEED TO STEP BACKWARDS TOWARDS ROOT.
+			//If this new node has no children OR it's 1 child is on the blacklist, move back up the tree.
+			if((prevIndexAbove+1 == current.NumChildren() && direction == 1) || (prevIndexAbove == 0 && direction == -1)){
+				blacklist.add(current); 
+				success = nextOver(current.ParentNode,blacklist,deficitDepth+1,direction,current.ParentNode.GetChildIndex(current)); //Recurse back another node.
+			}else if (!(current.NumChildren() >0) || (blacklist.contains(current.GetChild(0)) && current.NumChildren() == 1)){ 
+				blacklist.add(current); 
+				success = nextOver(current.ParentNode,blacklist,deficitDepth+1,direction,current.ParentNode.GetChildIndex(current)); //Recurse back another node.
+			}else{
+				
+				//CONDITIONS WE NEED TO GO DEEPER:
+				if(direction == 1){ //March right along this previous node.
+						for (int i = prevIndexAbove+1; i<current.NumChildren(); i++){
+								success = nextOver(current.GetChild(i),blacklist,deficitDepth-1,direction,-1);
+								if(success){
+									return true;
+								}
+							}
+				}else if(direction == -1){ //March left along this previous node
+						for (int i = prevIndexAbove-1; i>=0; i--){
+								success = nextOver(current.GetChild(i),blacklist,deficitDepth-1,direction,current.GetChild(i).NumChildren());
+								if(success){
+									return true;
+								}
+						}
+					}
+				}
+			}
+		success = false;
+		return success;
+
+	}
+	
 	@Override
 	public void keyPressed(KeyEvent arg0) {
 		
+		//Navigating the focused node tree
+		   int keyCode = arg0.getKeyCode();
+		    switch( keyCode ) { 
+		        case KeyEvent.VK_UP: //Go out the branches of the tree
+		        	arrowSwitchNode(0,1);  
+		            break;
+		        case KeyEvent.VK_DOWN: //Go back towards root one level
+		        	arrowSwitchNode(0,-1); 
+		            break;
+		        case KeyEvent.VK_LEFT: //Go left along an isobranch (like that word?)
+		            arrowSwitchNode(-1,0);
+		            break;
+		        case KeyEvent.VK_RIGHT : //Go right along an isobranch
+		            arrowSwitchNode(1,0);
+		            break;
+		     }
+		    
 		switch(arg0.getKeyChar()){
 		case 's': // toggle the score text at the end of all branches
 			if (arg0.isMetaDown()){
@@ -384,6 +499,7 @@ public class TreePaneMaker implements Schedulable{
 			break;
 		case 'p': //Pause visualization.
 			pauseDraw = !pauseDraw;
+			break;
 		}
 	}
 

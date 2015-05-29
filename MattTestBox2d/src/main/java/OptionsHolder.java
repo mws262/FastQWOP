@@ -1,4 +1,10 @@
 public class OptionsHolder {
+	
+	//TEMP TEMP
+	
+	public static TrialNode focusNode;
+	
+	
 	/* Global variable cringe */
 	/** Total games played **/
 	public static int gamesPlayed = 0;
@@ -11,6 +17,7 @@ public class OptionsHolder {
 	public static boolean verboseOn = true;
 	public static int verboseIncrement = 1000; // How many games between outputs?
 	public static boolean DataToFile = false;
+	public static boolean KeepStates = true; //Do we record the state at every node. (performance issue?)
 	
 	/* SEARCH OPTIONS */
 	/** Repeat actions to attempt periodic motion? **/
@@ -24,6 +31,9 @@ public class OptionsHolder {
 	
 	/** Depth of the search (number of parameters down the tree) **/
 	public static int treeDepth = 8;
+	
+	public static int prefixLength = 4; //How many elements lead up to the repeated portion.
+	public static int periodicLength = 4; // How many elements are the repeated portion.
 	
 	/** List of possible actions at any point in this predefined sequence. Will wrap back to the first one whan each has been sampled from **/
 	

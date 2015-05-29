@@ -42,10 +42,12 @@ public class ExhaustiveQwop {
 		int verboseIncrement = OptionsHolder.verboseIncrement;
 		
 		CurrentNode = RootNode;
+
 		int counter = 0;
 		boolean failed = false;
 		
 		QWOPHandler.NewGame(OptionsHolder.visOn); //Get a new game going.
+//		RootNode.CaptureState(QWOPHandler);
 		int[] oldActions = {};
 		int[] bufferNew = new int[50]; //plenty big for storing new values since last fall.
 		Arrays.fill(bufferNew, -1);
@@ -121,6 +123,9 @@ public class ExhaustiveQwop {
 				float cost = QWOPHandler.NextAction(NextNode.EchoControl());
 				NextNode.SetScore(-cost);
 				
+				if(OptionsHolder.KeepStates){
+					NextNode.CaptureState(QWOPHandler);
+				}
 				//NEW NEW: Once we get past the intro 2 steps, we want to back up the state because we're looking for a set of 4 parameters which results in something reasonably close to periodic.
 				if(NextNode.TreeDepth == 4){
 					BeginningState.CaptureState();
