@@ -57,11 +57,14 @@ public class TreePaneMaker implements Schedulable{
 	  LineHolder Lines;
 	  
 	  /** Min and max scaling of end costs -- gotten by taking 2.5 std devs out on either side of the mean final costs **/
-	  public float minScaling = 0;
-	  public float maxScaling = 0;
+	  public float minDistScaling = 0;
+	  public float maxDistScaling = 0;
 	  
-	  public float valMinScaling = 0;
-	  public float valMaxScaling = 0;
+	  public float minValScaling = 0;
+	  public float maxValScaling = 0;
+	  
+	  public ArrayList<Float> DistHolder = new ArrayList<Float>(); //keep a list of all the costs. This is sourced from exhaustive qwop
+	  public ArrayList<Float> ValHolder = new ArrayList<Float>();
 	  
 	  public int maxDepth = 2; //By default, using this for scaling, but should be changed from above.
 	  
@@ -120,25 +123,45 @@ public class TreePaneMaker implements Schedulable{
     public void setSnapshotPane(SnapshotPaneMaker snap){
   	  SnapshotPane = snap;
     }
+ 
 	
 	/** finds the standard deviation of all final costs to make a nice scaling for coloring. std dev to avoid outlier skewing **/
-	public void ScaleCosts(ArrayList<Float> costs){
+	public void ScaleDist(){
 		if (!scoreDisplay) return; //Don't waste the computation if we're not displaying scores.
 		//Find the mean
 		float mean = 0;
-		for (int i = 0; i<costs.size(); i++){
-			mean += costs.get(i);
+		for (int i = 0; i<DistHolder.size(); i++){
+			mean += DistHolder.get(i);
 		}
-		mean /= (float)costs.size();
+		mean /= (float)DistHolder.size();
 		
 		float stdDev = 0;
-		for (int i = 0; i<costs.size(); i++){
-			stdDev += (costs.get(i)-mean)*(costs.get(i)-mean);
+		for (int i = 0; i<DistHolder.size(); i++){
+			stdDev += (DistHolder.get(i)-mean)*(DistHolder.get(i)-mean);
 		}
-		stdDev = (float)Math.sqrt(stdDev/(float)costs.size());
+		stdDev = (float)Math.sqrt(stdDev/(float)DistHolder.size());
 		
-		minScaling = mean - stdDev*8f; //Sorta buggy thing about cost being negative means that these are actually the best ones.
-		maxScaling = mean + stdDev*0.3f;
+		minDistScaling = mean - stdDev*8f; //Sorta buggy thing about cost being negative means that these are actually the best ones.
+		maxDistScaling = mean + stdDev*0.3f;
+	}
+	/** finds the standard deviation of all final costs to make a nice scaling for coloring. std dev to avoid outlier skewing **/
+	public void ScaleVal(){
+		if (!valDisplay) return; //Don't waste the computation if we're not displaying scores.
+		//Find the mean
+		float mean = 0;
+		for (int i = 0; i<ValHolder.size(); i++){
+			mean += ValHolder.get(i);
+		}
+		mean /= (float)ValHolder.size();
+		
+		float stdDev = 0;
+		for (int i = 0; i<ValHolder.size(); i++){
+			stdDev += (ValHolder.get(i)-mean)*(ValHolder.get(i)-mean);
+		}
+		stdDev = (float)Math.sqrt(stdDev/(float)ValHolder.size());
+		
+		minValScaling = mean - stdDev*3f; //Sorta buggy thing about cost being negative means that these are actually the best ones.
+		maxValScaling = mean + stdDev*2f;
 	}
 
     /** Jpanel inside the jframe **/
@@ -197,14 +220,14 @@ public class TreePaneMaker implements Schedulable{
 	      		
      			if (scoreDisplay && Lines.NodeList[i][1].DeadEnd){
 
-     				g2.setColor(getScoreColor(minScaling,maxScaling,-Lines.NodeList[i][1].rawScore));
-     				g2.setFont(scaleFont.InterpolateFont(maxScaling,minScaling,-Lines.NodeList[i][1].rawScore*OptionsHolder.sizeFactor));
+     				g2.setColor(getScoreColor(minDistScaling,maxDistScaling,-Lines.NodeList[i][1].rawScore));
+     				g2.setFont(scaleFont.InterpolateFont(minDistScaling,maxDistScaling,-Lines.NodeList[i][1].rawScore*OptionsHolder.sizeFactor));
       				g2.drawString(df.format(Lines.NodeList[i][1].rawScore), (int)Lines.NodeList[i][1].nodeLocation[0], (int)Lines.NodeList[i][1].nodeLocation[1]);
       				g2.setColor(Color.BLACK);
       			}else if (valDisplay && Lines.NodeList[i][1].DeadEnd){
      				if(Lines.NodeList[i][1].value != 0){
-	     				g2.setColor(getScoreColor(valMinScaling, valMaxScaling, Lines.NodeList[i][1].value));
-	     				g2.setFont(scaleFont.InterpolateFont(valMaxScaling,valMinScaling,Lines.NodeList[i][1].value*OptionsHolder.sizeFactor));
+	     				g2.setColor(getScoreColor(minValScaling, maxValScaling, Lines.NodeList[i][1].value));
+	     				g2.setFont(scaleFont.InterpolateFont(maxValScaling,minValScaling,Lines.NodeList[i][1].value*OptionsHolder.sizeFactor));
 	      				g2.drawString(df.format(Lines.NodeList[i][1].value), (int)Lines.NodeList[i][1].nodeLocation[0], (int)Lines.NodeList[i][1].nodeLocation[1]);
 	      				g2.setColor(Color.BLACK);
      				}
@@ -220,9 +243,6 @@ public class TreePaneMaker implements Schedulable{
 	      	
 
 	  		  //Write the instructions up too:
-//	  		  g.setColor(Color.WHITE);
-//	  		  g.setColor(new Color(1f,1f,1f,0.01f));
-//	  		  g.fillRect(0, OptionsHolder.windowHeight-instructions.length*25-50, 400, OptionsHolder.windowHeight);
 	  		  g.setColor(Color.BLACK);
 	  		  g.setFont(smallFont);
 	  		  for (int i = 0; i<instructions.length; i++){
@@ -257,6 +277,16 @@ public class TreePaneMaker implements Schedulable{
       /** Set the LineHolder to pay attention to **/
       public void setTree(LineHolder Lines){
       	this.Lines = Lines;
+      }
+      
+      /** Set the focused node **/
+      public void setFocusNode(TrialNode focus){
+    	  focusedNode = focus;
+      }
+      
+      /** Get the focused node **/
+      public TrialNode getFocusNode(){
+    	  return focusedNode;
       }
 
       
@@ -393,17 +423,16 @@ public class TreePaneMaker implements Schedulable{
 		//Stupid way of getting this one's index according to its parent.
 		if(focusedNode != null){
 			int thisIndex = focusedNode.ParentNode.GetChildIndex(focusedNode);
-			System.out.println(focusedNode.ParentNode.GetChildIndex(focusedNode));
 			//This set of logicals eliminates the edge cases, then takes the proposed action as default
 			if (thisIndex == 0 && direction == -1){ //We're at the lowest index of this node and must head to a new parent node.
 				ArrayList<TrialNode> blacklist = new ArrayList<TrialNode>(); //Keep a blacklist of nodes that already proved to be duds.
 				blacklist.add(focusedNode);
-				nextOver(focusedNode.ParentNode,blacklist,1,direction,focusedNode.ParentNode.GetChildIndex(focusedNode));
+				nextOver(focusedNode.ParentNode,blacklist,1,direction,focusedNode.ParentNode.GetChildIndex(focusedNode),0);
 				
 			}else if (thisIndex == focusedNode.ParentNode.NumChildren()-1 && direction == 1){ //We're at the highest index of this node and must head to a new parent node.
 				ArrayList<TrialNode> blacklist = new ArrayList<TrialNode>();
 				blacklist.add(focusedNode);
-				nextOver(focusedNode.ParentNode,blacklist, 1,direction,focusedNode.ParentNode.GetChildIndex(focusedNode));
+				nextOver(focusedNode.ParentNode,blacklist, 1,direction,focusedNode.ParentNode.GetChildIndex(focusedNode),0);
 				
 			}else{ //Otherwise we can just switch nodes within the scope of this parent.
 				focusedNode = (focusedNode.ParentNode.GetChild(thisIndex+direction));
@@ -423,7 +452,8 @@ public class TreePaneMaker implements Schedulable{
 	}
 	
 	/** Take a node back a layer. Don't return to node past. Try to go back out by the deficit depth amount in the +1 or -1 direction left/right **/
-	private boolean nextOver(TrialNode current, ArrayList<TrialNode> blacklist, int deficitDepth, int direction,int prevIndexAbove){
+	private boolean nextOver(TrialNode current, ArrayList<TrialNode> blacklist, int deficitDepth, int direction,int prevIndexAbove,int numTimesTried){ // numTimesTried added to prevent some really deep node for causing some really huge search through the whole tree. If we don't succeed in a handful of iterations, just fail quietly.
+		numTimesTried++;
 		boolean success = false;
 		//TERMINATING CONDITIONS-- fail quietly if we get back to root with nothing. Succeed if we get back to the same depth we started at.
 		if (deficitDepth == 0){ //We've successfully gotten back to the same level. Great.
@@ -432,29 +462,30 @@ public class TreePaneMaker implements Schedulable{
 		}else if(current.TreeDepth == 0){
 			return true; // We made it back to the tree's root without any success. Just return.
 		
+		}else if(numTimesTried>100){// If it takes >100 movements between nodes, we'll just give up.
+			return true;
 		}else{
-			
 			//CCONDITIONS WE NEED TO STEP BACKWARDS TOWARDS ROOT.
 			//If this new node has no children OR it's 1 child is on the blacklist, move back up the tree.
 			if((prevIndexAbove+1 == current.NumChildren() && direction == 1) || (prevIndexAbove == 0 && direction == -1)){
 				blacklist.add(current); 
-				success = nextOver(current.ParentNode,blacklist,deficitDepth+1,direction,current.ParentNode.GetChildIndex(current)); //Recurse back another node.
+				success = nextOver(current.ParentNode,blacklist,deficitDepth+1,direction,current.ParentNode.GetChildIndex(current),numTimesTried); //Recurse back another node.
 			}else if (!(current.NumChildren() >0) || (blacklist.contains(current.GetChild(0)) && current.NumChildren() == 1)){ 
 				blacklist.add(current); 
-				success = nextOver(current.ParentNode,blacklist,deficitDepth+1,direction,current.ParentNode.GetChildIndex(current)); //Recurse back another node.
+				success = nextOver(current.ParentNode,blacklist,deficitDepth+1,direction,current.ParentNode.GetChildIndex(current),numTimesTried); //Recurse back another node.
 			}else{
 				
 				//CONDITIONS WE NEED TO GO DEEPER:
 				if(direction == 1){ //March right along this previous node.
 						for (int i = prevIndexAbove+1; i<current.NumChildren(); i++){
-								success = nextOver(current.GetChild(i),blacklist,deficitDepth-1,direction,-1);
+								success = nextOver(current.GetChild(i),blacklist,deficitDepth-1,direction,-1,numTimesTried);
 								if(success){
 									return true;
 								}
 							}
 				}else if(direction == -1){ //March left along this previous node
 						for (int i = prevIndexAbove-1; i>=0; i--){
-								success = nextOver(current.GetChild(i),blacklist,deficitDepth-1,direction,current.GetChild(i).NumChildren());
+								success = nextOver(current.GetChild(i),blacklist,deficitDepth-1,direction,current.GetChild(i).NumChildren(),numTimesTried);
 								if(success){
 									return true;
 								}
@@ -462,7 +493,7 @@ public class TreePaneMaker implements Schedulable{
 					}
 				}
 			}
-		success = false;
+		success = true;
 		return success;
 
 	}
@@ -530,13 +561,13 @@ public class TreePaneMaker implements Schedulable{
 
 	@Override
 	public void DoScheduled() {
-		update();
-		
+		ScaleDist();
+		ScaleVal();	
 	}
 
 	@Override
 	public void DoEvery() {
-		// TODO Auto-generated method stub
+		update();
 		
 	}
 

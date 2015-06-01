@@ -57,6 +57,7 @@ public class RunnerPaneMaker implements Schedulable,TabbedPaneActivator{
 		if(tabActive){ //Skip scheduled updates if this tab isn't in focus.
 			update();
 			try {
+
 				Thread.sleep((long)(OptionsHolder.timestep*1000));
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
@@ -140,7 +141,7 @@ class RunnerPane extends JPanel{
 	    		if(newfixture.getType() == ShapeType.POLYGON){
 
 			    	PolygonShape newshape = (PolygonShape)newfixture.getShape();
-			    	
+	
 			    	for (int k = 0; k<newshape.getVertexCount(); k++){
 			    		
 			    		Transform trans = newbody.getTransform();

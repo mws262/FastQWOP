@@ -11,6 +11,9 @@ public class TrialNode {
 	/**Estimated value of this node in a global sense (UNIMPLEMENTED) **/
 	public float value = 0; //TODO
 	
+	/** Estimated speed dist/phys steps **/
+	public float speed = 0;
+	
 	/** Is this state a dead end (based on failures) **/
 	boolean DeadEnd = false;
 	/** Is this node currently fully explored? i.e. everything below it has been explored **/
@@ -256,7 +259,6 @@ public class TrialNode {
 	
 	/** Get the sequence of actions up to, and including this node **/
 	public int[] getSequence(){
-		System.out.println(TreeDepth);
 		int[] sequence = new int[TreeDepth];
 		TrialNode current = this;
 		sequence[TreeDepth-1] = current.ControlAction;
@@ -371,6 +373,10 @@ public class TrialNode {
 	public void SetScore(float score){
 		rawScore = score;
 		diffScore = rawScore - ParentNode.rawScore;
+	}
+	
+	public void SetSpeed(float speed){
+		this.speed = speed;
 	}
 	
 	/** WARNING: This is the index according to this one's list. NOT the control index. Use with caution. **/

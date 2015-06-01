@@ -13,8 +13,11 @@ public class ExhaustiveQwop {
 	
 	private static QWOPInterface QWOPHandler;
 	
-	public static ArrayList<Float> CostHolder = new ArrayList<Float>(); //keep a list of all the costs
+	private final static Random rand = new Random();
 	
+	public static ArrayList<Float> DistHolder = new ArrayList<Float>(); //keep a list of all the costs
+	public static ArrayList<Float> ValHolder = new ArrayList<Float>(); //keep a list of all the costs
+
 	public ExhaustiveQwop() {
 		// TODO Auto-generated constructor stub
 	}
@@ -60,7 +63,6 @@ public class ExhaustiveQwop {
 		
 		
 		// Node visualization stuff
-//		VisTree visnodes = new VisTree(RootNode);
 		DataGrabber saveInfo = new DataGrabber(); //Argument is how many times we get to 8th level do we have between file writes.
 		saveInfo.setInterval(50);
 		Scheduler Every8 = new Scheduler(); //This scheduler gets incremented every time we find a path that makes it out to 8 without falling.
@@ -69,14 +71,16 @@ public class ExhaustiveQwop {
 		VisMaster VisRoot = new VisMaster(QWOPHandler,RootNode,saveInfo);
 		Scheduler EveryEnd = new Scheduler(); //This scheduler gets incremented every time we fail.
 		VisRoot.setInterval(1);
-		VisRoot.TreeMaker.setInterval(1);
+		VisRoot.TreeMaker.setInterval(500);
+		VisRoot.TreeMaker.DistHolder = DistHolder; //Now the treemaker has a reference to all the value and distance numbers for scaling purposes.
+		VisRoot.TreeMaker.ValHolder = ValHolder;
+
 		VisRoot.DataMaker.setInterval(1000);
 		
 		EveryEnd.addTask(VisRoot);
 		EveryEnd.addTask(VisRoot.TreeMaker);
 		EveryEnd.addTask(VisRoot.DataMaker);
 
-		
 		Scheduler EveryPhys = new Scheduler();
 		VisRoot.RunMaker.setInterval(1);
 		EveryPhys.addTask(VisRoot.RunMaker);
@@ -122,7 +126,7 @@ public class ExhaustiveQwop {
 			try {
 				float cost = QWOPHandler.NextAction(NextNode.EchoControl());
 				NextNode.SetScore(-cost);
-				
+				NextNode.SetSpeed(QWOPHandler.Speed());
 				if(OptionsHolder.KeepStates){
 					NextNode.CaptureState(QWOPHandler);
 				}
@@ -135,17 +139,9 @@ public class ExhaustiveQwop {
 					NewError = EndState.Compare(BeginningState);
 					NextNode.value = NewError; //Using the periodic error as the value for now.
 					saveInfo.AddNonFailedNode(NextNode);
+					ValHolder.add(NewError);
 					Every8.Iterate();
-//					if (counter%100 == 0 ){
-//					ScatterPlotDemo1.dataset.GiveX(saveInfo.x);
-//					ScatterPlotDemo1.dataset.GiveY(saveInfo.y);
-//					ScatterPlotDemo1.Make();
-//					}
-//					if(NewError>visnodes.valMaxScaling){ //TEMPORARY FOR GIVING THE VISUALIZER BOUNDS.
-//						visnodes.valMaxScaling = NewError;
-//					}else if(NewError < visnodes.valMinScaling){
-//						visnodes.valMinScaling = NewError;
-//					}
+
 					if (NewError < LeastError){
 						
 						if (verbose){
@@ -190,7 +186,7 @@ public class ExhaustiveQwop {
 			
 		
 			/* Check Failure */
-			failed = NextNode.TreeDepth==depth; //We auto "fail" if we try to expand the tree beyond the specified depth. This is probably inefficient, since we knowthis failure without going through all the steps.
+//			failed = NextNode.TreeDepth==depth; //We auto "fail" if we try to expand the tree beyond the specified depth. This is probably inefficient, since we knowthis failure without going through all the steps.
 			// We also fail based on the dude's state:
 			failed = failed || QWOPHandler.CheckFailure();
 			/* Handle Failure or move down the tree if successful */
@@ -198,15 +194,15 @@ public class ExhaustiveQwop {
 
 			if (failed){ //If we fall, then remove this new node and check to see if we've completed any trees.
 
-				CostHolder.add(-CurrentNode.rawScore);
+				CurrentNode.RemoveChild(NextNode);
+				DistHolder.add(-CurrentNode.rawScore);
 				if (CurrentNode.TreeDepth>maxDepth) {
 					maxDepth = CurrentNode.TreeDepth; //Update the tree depth if we manage to go deeper.
-//					visnodes.maxDepth = maxDepth;
+					VisRoot.TreeMaker.maxDepth = maxDepth;
 				}
 				//Plot the new tree nodes if this setting is on:
 				if(OptionsHolder.treeVisOn){
 //					visnodes.ScaleCosts(CostHolder); //Give the visTree all the end costs for scaling coloring.
-//					visnodes.UpdateTree();
 					EveryEnd.Iterate();
 				}
 				
@@ -271,7 +267,7 @@ public class ExhaustiveQwop {
 
 	    // NOTE: Usually this should be a field rather than a method
 	    // variable so that it is not re-seeded every call.
-	    Random rand = new Random();
+	    
 
 	    // nextInt is normally exclusive of the top value,
 	    // so add 1 to make it inclusive

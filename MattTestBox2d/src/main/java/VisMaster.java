@@ -87,6 +87,7 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	    TreeMaker = new TreePaneMaker(root);
 	    this.TreePane = TreeMaker.TreePanel;
 	    TreeMaker.setSnapshotPane(SnapshotMaker);
+	    DataMaker.setTreePane(TreeMaker);
 	    
 		TreePane.setBorder(BorderFactory.createRaisedBevelBorder());
 	    pane.add(TreePane,TreeConstraints);
@@ -108,7 +109,7 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 			p.DeactivateTab();
 		}
 		TabPanes.get(DataTabs.getSelectedIndex()).ActivateTab();
-		SnapshotMaker.setNode(OptionsHolder.focusNode);
+		SnapshotMaker.setNode(TreeMaker.TreePanel.getFocusNode());
 //	    SnapshotMaker.update(); //TEMPORARY REMOVE
 	}
 

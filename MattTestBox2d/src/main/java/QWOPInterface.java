@@ -34,7 +34,7 @@ public class QWOPInterface {
 	public boolean visOn = false;
 	
 	public VisRunner visRun;
-	
+	private boolean failFlag = false;
 	private Scheduler StepSched;
 	
 	public QWOPInterface() {
@@ -50,14 +50,14 @@ public class QWOPInterface {
 		currentIndex = 0;
 		Arrays.fill(currentSequence, 0);
 		stepsInRun = 0;
-		
+		failFlag = false; //Reset from previous failures.
 		// If we're visualizing, then either create the visualizer or pass it the new world we're working with.
 		if (visOn && visRun == null){
 			visRun = new VisRunner(game.getWorld());
 		}else if(visOn){
 			visRun.SwitchWorlds(game.getWorld());
 		}
-		m_world.setContactListener(new CollisionListener(game));
+		m_world.setContactListener(new CollisionListener(game,this));
 	}
 	/** Return the current physics world **/
 	public World getWorld(){
@@ -81,12 +81,20 @@ public class QWOPInterface {
 //		return -game.TorsoBody.getPosition().x;
 		return cost;
 	}
+	/** Calculate speed up to this point in units of dist/physsteps **/
+	public float Speed(){
+		return game.TorsoBody.getPosition().x/stepsInRun;
+	}
 	
 	/* Check failure based on state */
 	public boolean CheckFailure(){
-//		boolean failure = game.TorsoBody.getPosition().y>5; //ground is at 10ish with up being -, so we're calling torso above 7 being failure.	
-		boolean failure = OptionsHolder.FailureCondition(game); //Failure condition now stored in OptionsHolder for easier access.
-		return failure;
+		return failFlag;
+		//Removed the checker from OPTIONSHOLDER
+	}
+	
+	/** Callback calls this to demand instant termination of phys steps **/
+	public void InstaFail(){
+		failFlag = true;
 	}
 	
 	/* Do sequence of actions */
@@ -95,19 +103,19 @@ public class QWOPInterface {
 		
 		for (int i = 0; i < delay.length; i++){
 			cost[i] = NextAction(delay[i]);
+			if (failFlag){
+				break;
+			}
 		}
 		return cost;
 	}
 	
 	private void DoPeriodic() throws InterruptedException{
-		boolean fallen = false;
 		int[] subsequence = new int[periodicLength];
 		subsequence = Arrays.copyOfRange(currentSequence, prefixLength-1, periodicLength+prefixLength-1);
 //		System.out.println(subsequence.length);
-		while(!fallen){
+		while(!failFlag){
 			DoSequence(subsequence);
-			fallen = CheckFailure() || NormSpeed()<0.1;
-//			if (NormSpeed()<0.1) System.out.println("We've killed a solution due to low periodic speed.");
 		}
 		
 	}
@@ -120,6 +128,9 @@ public class QWOPInterface {
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,false, false, false);
 				m_world.step(timestep, veliterations, positerations);
+				if(failFlag){
+					break;
+				}
 				if (StepSched != null){
 					StepSched.Iterate();
 				}
@@ -129,6 +140,9 @@ public class QWOPInterface {
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,true, true, false);
 				m_world.step(timestep, veliterations, positerations);
+				if(failFlag){
+					break;
+				}
 				if (StepSched != null){
 					StepSched.Iterate();
 				}
@@ -138,6 +152,9 @@ public class QWOPInterface {
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,false, false, false);
 				m_world.step(timestep, veliterations, positerations);
+				if(failFlag){
+					break;
+				}
 				if (StepSched != null){
 					StepSched.Iterate();
 				}
@@ -147,6 +164,9 @@ public class QWOPInterface {
 			for (int j = 0; j<delay; j++){
 				game.everyStep(true,false, false, true);
 				m_world.step(timestep, veliterations, positerations);
+				if(failFlag){
+					break;
+				}
 				if (StepSched != null){
 					StepSched.Iterate();
 				}
@@ -180,8 +200,11 @@ public class QWOPInterface {
 class CollisionListener implements ContactListener{
 
 	QWOPGame game;
-	public CollisionListener(QWOPGame game){
+	QWOPInterface QWOPHandler;
+	
+	public CollisionListener(QWOPGame game,QWOPInterface QWOPHandler){
 		this.game = game;
+		this.QWOPHandler = QWOPHandler;
 	}
 	@Override
 	public void beginContact(Contact contact) {
@@ -194,7 +217,7 @@ class CollisionListener implements ContactListener{
 		fixtureB.m_body.equals(game.LLArmBody) ||
 		fixtureA.m_body.equals(game.RLArmBody) ||
 		fixtureB.m_body.equals(game.RLArmBody)){
-			
+			QWOPHandler.InstaFail();
 		}
 			
 	}

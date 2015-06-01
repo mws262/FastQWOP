@@ -26,7 +26,7 @@ public class DataGrabber extends AbstractXYDataset implements Schedulable,Domain
 	private int writeInterval;
 	
 	/** List of non-failed nodes **/
-	private ArrayList<TrialNode> NodeList = new ArrayList<TrialNode>();
+	public ArrayList<TrialNode> NodeList = new ArrayList<TrialNode>();
 	
 	
 	private double[] xMin;
@@ -37,15 +37,23 @@ public class DataGrabber extends AbstractXYDataset implements Schedulable,Domain
 	private Range[] yRange;;
 	private int numFields = 0;
 	
-	
+	//Note: uses reflection to get the named parameters
 	/** Names of the fields in the trialnodes which will be plotted. Y AND X MUST BE THE SAME DIMENSION **/
-	public String[] xFieldNames = {"rawScore","value"};
-	public String[] yFieldNames = {"value","rawScore"};
+	public String[] xFieldNames = {"rawScore","rawScore"};
+	public String[] yFieldNames = {"value","speed"};
 	
+	// Set the relationship to be plotted. Currently supported: direct, inverse, log, and exp.
+	public String[] xRelationship = {"direct","direct"};
+	public String[] yRelationship = {"inverse","direct"};
+	
+	/** Axis labels -- just for visualization **/
+	public String[] xLabels = {"Dist Travelled", "Dist Travelled"};
+	public String[] yLabels = {"1/Periodic Error", "Speed"};
 	
 	/** Field objects for the parameters named above. **/
 	private Field[] xFields;
 	private Field[] yFields;
+	
 	
 	public DataGrabber() throws SecurityException, NoSuchFieldException, IllegalArgumentException, IllegalAccessException {
 		numFields = xFieldNames.length;
@@ -58,8 +66,8 @@ public class DataGrabber extends AbstractXYDataset implements Schedulable,Domain
 			xFields[i] = TrialNode.class.getField(xFieldNames[i]);
 			yFields[i] = TrialNode.class.getField(yFieldNames[i]);
 			
-			xRange[i] = new Range(0,1);//Set some defaults to prevent errors
-			yRange[i] = new Range(0,1);
+			xRange[i] = new Range(0,0.01);//Set some defaults to prevent errors
+			yRange[i] = new Range(0,0.01);
 		}
 
 		xMin = new double[numFields];
@@ -67,8 +75,6 @@ public class DataGrabber extends AbstractXYDataset implements Schedulable,Domain
 		yMin = new double[numFields];
 		yMax = new double[numFields];
 
-		
-		
 	}
 	
 	public void AddNonFailedNode(TrialNode newNode){
@@ -89,24 +95,27 @@ public class DataGrabber extends AbstractXYDataset implements Schedulable,Domain
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-
-			if (newY>yMax[i]){
-				yMax[i] = newY;
+			
+			//If we're doing an inverse, power, etc relationship, we need to also do the relationship for scaling purposes.
+			double xTrans = DoRelationship(newX,i,0);
+			double yTrans = DoRelationship(newY,i,1);
+			
+			if (yTrans>yMax[i]){
+				yMax[i] = yTrans;
 				yRange[i] = Range.expandToInclude(yRange[i], yMax[i]);
-			}else if(newY < yMin[i]){
-				yMin[i] = newY;
+			}else if(yTrans < yMin[i]){
+				yMin[i] = yTrans;
 				yRange[i] = Range.expandToInclude(yRange[i], yMin[i]);
 			}
 			
-			if (newX>xMax[i]){
-				xMax[i] = newX;
+			if (xTrans>xMax[i]){
+				xMax[i] = xTrans;
 				xRange[i] = Range.expandToInclude(xRange[i], xMax[i]);
-			}else if(newX < xMin[i]){
-				xMin[i] = newX;
+			}else if(xTrans < xMin[i]){
+				xMin[i] = xTrans;
 				xRange[i] = Range.expandToInclude(xRange[i], xMin[i]);
 			}
 		}
-	
 	}
 	
 	public void WriteToFile(){
@@ -165,10 +174,39 @@ public class DataGrabber extends AbstractXYDataset implements Schedulable,Domain
 		return NodeList.size();
 	}
 
+	public double DoRelationship(double val, int series, int axis){
+		String[] relationship;
+		if (axis == 0){
+			relationship = xRelationship;
+		}else if(axis == 1){
+			relationship = yRelationship;
+		}else{
+			return -1;
+		}
+
+		
+		if(relationship[series] == "direct"){
+			return val;
+		}else if(relationship[series] == "inverse"){
+			return 1f/(val + 0.00000001); //+ epsilon to prevend div/0
+		}else if (relationship[series] == "log"){
+			return Math.log(val);
+			
+		}else if (relationship[series] == "exp"){
+			return Math.exp(val);
+		}else{ //just assume direct if nothing else/invalid.
+			return val;	
+		}
+		
+	}
+	
 	@Override
 	public Number getX(int series, int item) {
 		try {
-			return (Number) xFields[series].get(NodeList.get(item));
+			Float val = (Float) xFields[series].get(NodeList.get(item));
+			
+			return DoRelationship(val,series,0);
+			
 		} catch (IllegalArgumentException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -179,10 +217,15 @@ public class DataGrabber extends AbstractXYDataset implements Schedulable,Domain
 		return null;
 	}
 
+
 	@Override
 	public Number getY(int series, int item) {
 		try {
-			return (Number) yFields[series].get(NodeList.get(item));
+			Float val = (Float) yFields[series].get(NodeList.get(item));
+			
+			return DoRelationship(val,series,1);
+			
+			
 		} catch (IllegalArgumentException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

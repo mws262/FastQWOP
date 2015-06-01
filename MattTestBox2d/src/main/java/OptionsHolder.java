@@ -87,11 +87,6 @@ public class OptionsHolder {
 	  }
 	
 	/* STATE EVALUATION FUNCTIONS */
-	/** How do we decide when the run has failed? (currently checked at discrete decision points) **/
-	public static boolean FailureCondition(QWOPGame game){
-		boolean failure = game.HeadBody.getPosition().y>3 ; //ground is at 10ish with up being -, so we're calling torso above 7 being failure.	
-		return failure;
-	}
 	
 	/** Used to evaluate the cost of a specific state **/
 	public static float CostFunction(QWOPGame game){
