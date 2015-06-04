@@ -1,3 +1,5 @@
+import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics;
 
 import javax.swing.JCheckBox;
@@ -25,6 +27,8 @@ public class RunnerPaneMaker implements Schedulable,TabbedPaneActivator{
 	private World world;
 	
 	public RunnerPane RunPanel;
+	
+	public boolean disable = true;
 
 	public RunnerPaneMaker(QWOPInterface QWOPHandler) {
 		this.QWOPHandler = QWOPHandler;
@@ -54,7 +58,7 @@ public class RunnerPaneMaker implements Schedulable,TabbedPaneActivator{
 
 	@Override
 	public void DoScheduled() {
-		if(tabActive){ //Skip scheduled updates if this tab isn't in focus.
+		if(tabActive && !disable){ //Skip scheduled updates if this tab isn't in focus.
 			update();
 			try {
 
@@ -95,6 +99,11 @@ public class RunnerPaneMaker implements Schedulable,TabbedPaneActivator{
 		tabActive = false;
 		
 	}
+	
+	/** Tell us whether this tab is active **/
+	public boolean isActiveTab() {
+		return tabActive;
+	}
 
 }
 
@@ -111,11 +120,15 @@ class RunnerPane extends JPanel{
 	float flipud = 1f;
 	float fliplr = 1f;
 	
+	Font bigFont = new Font("Ariel", Font.PLAIN, 16);
 	OptionsHolder options;
 	
 	int headpos = 0;
-	JCheckBox visOn;
-	CheckBoxListener optionsList;
+
+	String label = "";
+	public void setLabel(String label){
+		this.label = label;
+	}
 	public RunnerPane(){
 
 	}
@@ -131,6 +144,18 @@ class RunnerPane extends JPanel{
 	/** Main graphics for the runner! **/
     public void paintComponent(Graphics g){
     	super.paintComponent(g);
+    	
+    	//Other Labels:
+		//Action sequence label
+		g.setFont(bigFont);
+		g.setColor(Color.BLACK);
+		if(label != ""){
+	    	g.drawString("Running selected sequence: ", 10,50);
+	    	g.drawString(label, 10, 75);
+		}else{
+			g.drawString("Going through the tree.", 10,50);
+		}
+    	
     	if(world != null){
     	Body newbody = world.getBodyList();
     	while (newbody != null){

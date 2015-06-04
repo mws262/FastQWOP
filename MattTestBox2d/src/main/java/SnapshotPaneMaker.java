@@ -225,12 +225,10 @@ class SnapshotPane extends JPanel{
     			count = 2;
     		}
     		
-    	}
-    	
+    	}	
         	//Other Labels:
-    		//Action sequence label
-    		
-    		g.setFont(bigFont);
+    		//Action sequence label	
+    		g.setFont(smallFont);
     		g.setColor(Color.BLACK);
         	g.drawString("Action Sequence:", 10,50);
         	g.drawString(actions, 10, 75);

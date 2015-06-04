@@ -39,16 +39,16 @@ public class DataGrabber extends AbstractXYDataset implements Schedulable,Domain
 	
 	//Note: uses reflection to get the named parameters
 	/** Names of the fields in the trialnodes which will be plotted. Y AND X MUST BE THE SAME DIMENSION **/
-	public String[] xFieldNames = {"rawScore","rawScore"};
-	public String[] yFieldNames = {"value","speed"};
+	public String[] xFieldNames = {"rawScore","rawScore","bestInBranch","bestInBranch"};
+	public String[] yFieldNames = {"value","speed","value","speed"};
 	
 	// Set the relationship to be plotted. Currently supported: direct, inverse, log, and exp.
-	public String[] xRelationship = {"direct","direct"};
-	public String[] yRelationship = {"inverse","direct"};
+	public String[] xRelationship = {"direct","direct","direct","direct"};
+	public String[] yRelationship = {"inverse","direct","inverse","direct"};
 	
 	/** Axis labels -- just for visualization **/
-	public String[] xLabels = {"Dist Travelled", "Dist Travelled"};
-	public String[] yLabels = {"1/Periodic Error", "Speed"};
+	public String[] xLabels = {"Dist Travelled (up to prefix+periodic)", "Dist Travelled (up to prefix+periodic)", "Dist (prefix+periodic+periodicdeviations)","Dist (prefix+periodic+periodicdeviations)"};
+	public String[] yLabels = {"1/Periodic Error", "Speed","1/Periodic Error", "Speed"};
 	
 	/** Field objects for the parameters named above. **/
 	private Field[] xFields;
@@ -79,45 +79,49 @@ public class DataGrabber extends AbstractXYDataset implements Schedulable,Domain
 	
 	public void AddNonFailedNode(TrialNode newNode){
 		NodeList.add(newNode);	
+	}
+	
+	/** Since some values get backpropagated after their nodes get added, we may need to update the data ranges every time the plot is updated. **/
+	public void UpdateBounds(){
 		
 		//Go ahead and update allllll the ranges of all the series being potentially plotted.
 		for (int i = 0; i<numFields; i++){
-			//Check if we need to update the bounds of our plot.
-			Float newX = 0f;
-			Float newY = 0f;
-			try {
-				newX = (Float)xFields[i].get(newNode);
-				newY = (Float)yFields[i].get(newNode);
-			} catch (IllegalArgumentException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (IllegalAccessException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			
-			//If we're doing an inverse, power, etc relationship, we need to also do the relationship for scaling purposes.
-			double xTrans = DoRelationship(newX,i,0);
-			double yTrans = DoRelationship(newY,i,1);
-			
-			if (yTrans>yMax[i]){
-				yMax[i] = yTrans;
-				yRange[i] = Range.expandToInclude(yRange[i], yMax[i]);
-			}else if(yTrans < yMin[i]){
-				yMin[i] = yTrans;
-				yRange[i] = Range.expandToInclude(yRange[i], yMin[i]);
-			}
-			
-			if (xTrans>xMax[i]){
-				xMax[i] = xTrans;
-				xRange[i] = Range.expandToInclude(xRange[i], xMax[i]);
-			}else if(xTrans < xMin[i]){
-				xMin[i] = xTrans;
-				xRange[i] = Range.expandToInclude(xRange[i], xMin[i]);
+			for (int j = 0; j<NodeList.size(); j++){
+				//Check if we need to update the bounds of our plot.
+				Float newX = 0f;
+				Float newY = 0f;
+				try {
+					newX = (Float) xFields[i].get(NodeList.get(j));
+					newY = (Float) yFields[i].get(NodeList.get(j));
+				} catch (IllegalArgumentException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IllegalAccessException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+				//If we're doing an inverse, power, etc relationship, we need to also do the relationship for scaling purposes.
+				double xTrans = DoRelationship(newX,i,0);
+				double yTrans = DoRelationship(newY,i,1);
+				if (yTrans>yMax[i]){
+					yMax[i] = yTrans;
+					yRange[i] = Range.expandToInclude(yRange[i], yMax[i]);
+				}else if(yTrans < yMin[i]){
+					yMin[i] = yTrans;
+					yRange[i] = Range.expandToInclude(yRange[i], yMin[i]);
+				}
+				
+				if (xTrans>xMax[i]){
+					xMax[i] = xTrans;
+					xRange[i] = Range.expandToInclude(xRange[i], xMax[i]);
+				}else if(xTrans < xMin[i]){
+					xMin[i] = xTrans;
+					xRange[i] = Range.expandToInclude(xRange[i], xMin[i]);
+				}
 			}
 		}
 	}
-	
 	public void WriteToFile(){
 		Writer writer = null;
 
@@ -126,7 +130,7 @@ public class DataGrabber extends AbstractXYDataset implements Schedulable,Domain
 		          new FileOutputStream("Data.txt"), "utf-8"));
 		    
 		    for (int i = 0; i<NodeList.size(); i++){
-		    	writer.write(NodeList.get(i).rawScore + "," + NodeList.get(i).value + "\n");
+		    	writer.write(NodeList.get(i).rawScore + "," + NodeList.get(i).value + "," + NodeList.get(i).bestInBranch + "\n");
 		    	
 		    	
 		    }    

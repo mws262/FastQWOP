@@ -11,6 +11,8 @@ public class TrialNode {
 	/**Estimated value of this node in a global sense (UNIMPLEMENTED) **/
 	public float value = 0; //TODO
 	
+	public float bestInBranch = 0;
+	
 	/** Estimated speed dist/phys steps **/
 	public float speed = 0;
 	
@@ -45,6 +47,9 @@ public class TrialNode {
 	/** Array of booleans indicating whether a potential child node has been visited **/
 	private boolean[] TestedChildren; //This keeps track of which child nodes we've tried.
 	
+	/** Random number generator for new node selection **/
+	private static Random randgen = new Random();
+	
 	/** Parameters for visualizing the tree **/
 	public float[] nodeLocation = new float[2]; //Location that this node appears on the tree visualization
 	public double nodeAngle = 0; //Keep track of the angle that the line previous node to this node makes.
@@ -64,14 +69,30 @@ public class TrialNode {
 		TreeDepth = ParentAction.TreeDepth + 1; // When we make nodes, we go down the tree.
 		this.ControlIndex = ControlIndex;
 		
-		NodeSequence = (ParentAction.NodeSequence%ActionList.length) + 1;
-		int NodeSequenceNext = ((ParentAction.NodeSequence + 1)%ActionList.length) + 1; //next action might wrap around.
+		//Do we repeat the last 4 elements over and over or do we start the whole sequence over.
+		if(OptionsHolder.repeatSelectionInPeriodic && ParentNode.NodeSequence >= OptionsHolder.prefixLength){ //Only do this if we're past the prefix.
+			
+			NodeSequence = (ParentAction.NodeSequence-OptionsHolder.prefixLength)%OptionsHolder.periodicLength + 1 + OptionsHolder.prefixLength;
+			int NodeSequenceNext = (ParentAction.NodeSequence-OptionsHolder.prefixLength + 1)%OptionsHolder.periodicLength + 1+ OptionsHolder.prefixLength;
+			
+			ControlAction = ActionList[NodeSequence - 1][ControlIndex];
+			TestedChildren = new boolean[ActionList[NodeSequenceNext-1].length]; //children belong to 2.
+			Arrays.fill(TestedChildren, false);
+			
+			PotentialChildren = ActionList[NodeSequenceNext-1].length;
+			
+		}else{
+			
+			NodeSequence = (ParentAction.NodeSequence%ActionList.length) + 1;
+			int NodeSequenceNext = ((ParentAction.NodeSequence + 1)%ActionList.length) + 1; //next action might wrap around.
+			
+			ControlAction = ActionList[NodeSequence-1][ControlIndex];
+			TestedChildren = new boolean[ActionList[NodeSequenceNext-1].length]; //children belong to 2.
+			Arrays.fill(TestedChildren, false);
+			
+			PotentialChildren = ActionList[NodeSequenceNext-1].length;
+		}
 		
-		ControlAction = ActionList[NodeSequence-1][ControlIndex];
-		TestedChildren = new boolean[ActionList[NodeSequenceNext-1].length]; //children belong to 2.
-		Arrays.fill(TestedChildren, false);
-		
-		PotentialChildren = ActionList[NodeSequenceNext-1].length;
 		
 		if(OptionsHolder.treeVisOn){
 			CalcNodePos();
@@ -248,6 +269,17 @@ public class TrialNode {
 	
 	///// Tree visualization methods end ///////
 	
+	/** If we've gotten beyond the "periodic" portion (8 usually), then propagate new high scores at failure back towards root. We stop at the beginning of the periodic portion. Thus, from 8 on, bestInBranch represents the BEST you can do from this node if you make good decisions **/
+	public void PropagateHighScore(float score){
+		if(TreeDepth >0){
+			if (score>bestInBranch){
+				bestInBranch = score;
+				ParentNode.PropagateHighScore(score);
+			}
+	
+		}
+	}
+	
 	/** Give this node a qwopinterface and capture the state **/
 	public void CaptureState(QWOPInterface QWOPHandler){
 		NodeState = new StateHolder(QWOPHandler);
@@ -277,43 +309,109 @@ public class TrialNode {
 	/** Add a new unvisited node. **/
 	public TrialNode SampleNew(){ //TODO add checking to make sure that this doesn't do weird things if all nodes are already sampled (should never occur).
 		TrialNode newNode = null;
-		//First try to get a completely untested node.
-		for (int i = 0; i<TestedChildren.length; i++){
-			if (!TestedChildren[i]){ //If the value is unused so far.
-				TestedChildren[i] = true; //We've added this node and now we're checking it off the list.
-				//Create the new object.
-				newNode = new TrialNode(this,i);
-				ChildNodes.add(newNode);
+		
+		
+		
+		if (OptionsHolder.PrioritizeNewNodes){ //Should we prioritize the selection of new nodes or just treat all the same.
+			int untested = PotentialChildren - ChildNodes.size(); //How many UNTESTED nodes exist?
+			if (untested>0){ //If there are zero untested nodes, skip.
+				int count = 0;
+				int selected = 0; 
+				if(OptionsHolder.sampleRandom){ //Do we select randomly amongst the possible untested nodes, or just pick the first index?
+					selected = randgen.nextInt(untested);
+				}
+	
+				
+				//First try to get a completely untested node.
+				for (int i = 0; i<TestedChildren.length; i++){
+					if (!TestedChildren[i]){ //If the value is unused so far.
+						if(count == selected){	
+							TestedChildren[i] = true; //We've added this node and now we're checking it off the list.
+							//Create the new object.
+							newNode = new TrialNode(this,i);
+							ChildNodes.add(newNode);
+							return newNode;
+						}else{
+							count++;
+						}
+					}
+		
+				}
+			}
+		
+			//If that doesn't work, then try to find an unexplored node.
+			if(OptionsHolder.sampleRandom){ //If sampling randomly, then we make a list of all possible unexplored nodes at this level and just pick these randomly.
+				int[] unexplored = new int[ChildNodes.size()]; //Keep track of the indices of all unexplored nodes. This array is likely oversized for safety's sake.
+				int unexploredCount = 0;
+				
+				for (int i = 0; i<ChildNodes.size(); i++){
+					if(	!ChildNodes.get(i).FullyExplored ){
+						unexplored[unexploredCount] = i;
+						unexploredCount++;
+					}
+				}
+				int selection = unexplored[randgen.nextInt(unexploredCount)];
+				
+				newNode = ChildNodes.get(selection);
 				return newNode;
+				
+				
+			}else{ //If we don't want to sample randomly amongst the not-fully-explored nodes, then we just grab the first one. This is more efficient, but not as broad of a search.
+				for (int i = 0; i<ChildNodes.size(); i++){
+					if(	!ChildNodes.get(i).FullyExplored ){
+						newNode = ChildNodes.get(i);
+						return newNode;
+					}
+				}
 			}
+		}else{		//If none of the above, then we want to sample from both new nodes and old unexplored nodes the same. (a better idea it seems)
+			
+			int choices = PotentialChildren;
+			for (TrialNode t: ChildNodes){
+				if (t.FullyExplored || t.DeadEnd) choices--; //We have 1 less choice for every fully explored / dead end node.
+			}
+			
+			int count = 0;
+			int selected = 0; 
+			if(OptionsHolder.sampleRandom){ //Do we select randomly amongst the possible untested nodes, or just pick the first index?
+					selected = randgen.nextInt(choices);
+			}
+	
+				int numTested = 0; //We want to go through all potential children, but we also need to keep track of the number of tested nodes so we know the index we're at in ChildNodes. This is kind of cumbersome.
+				
+				//First try to get a completely untested node.
+				for (int i = 0; i<PotentialChildren; i++){
+					
+					if (!TestedChildren[i]){ //If the value is unused so far.
+						if(count == selected){	
+							TestedChildren[i] = true; //We've added this node and now we're checking it off the list.
+							//Create the new object.
+							newNode = new TrialNode(this,i);
+							ChildNodes.add(newNode);
+							return newNode;
+						}else{
+							count++;
+						}
+					}else{ //This node must already exist.
+						if (!ChildNodes.get(numTested).DeadEnd && !ChildNodes.get(numTested).FullyExplored){ //If this is not fully explored, then it's potentially the choice.
+							if(count == selected){	
+								newNode = ChildNodes.get(numTested);
+								return newNode;
+							}else{
+								count++;
+							}
+						}
+						numTested++;
+					}
+		
+				}
+			
+			
+			
+			
+		}
+		
 
-		}
-		//If that doesn't work, then try to find an unexplored node.
-		if(OptionsHolder.sampleRandom){ //If sampling randomly, then we make a list of all possible unexplored nodes at this level and just pick these randomly.
-			int[] unexplored = new int[ChildNodes.size()]; //Keep track of the indices of all unexplored nodes. This array is likely oversized for safety's sake.
-			int unexploredCount = 0;
-			Random randgen = new Random();
-			
-			for (int i = 0; i<ChildNodes.size(); i++){
-				if(	!ChildNodes.get(i).FullyExplored ){
-					unexplored[unexploredCount] = i;
-					unexploredCount++;
-				}
-			}
-			int selection = unexplored[randgen.nextInt(unexploredCount)];
-			
-			newNode = ChildNodes.get(selection);
-			return newNode;
-			
-			
-		}else{ //If we don't want to sample randomly amongst the not-fully-explored nodes, then we just grab the first one. This is more efficient, but not as broad of a search.
-			for (int i = 0; i<ChildNodes.size(); i++){
-				if(	!ChildNodes.get(i).FullyExplored ){
-					newNode = ChildNodes.get(i);
-					return newNode;
-				}
-			}
-		}
 		throw new RuntimeException("Error in sampling a node. Couldn't find an unexplored or untested node.");
 	}
 

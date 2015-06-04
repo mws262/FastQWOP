@@ -21,7 +21,7 @@ public class OptionsHolder {
 	
 	/* SEARCH OPTIONS */
 	/** Repeat actions to attempt periodic motion? **/
-	public static boolean goPeriodic = true;
+	public static boolean goPeriodic = false;
 	
 	/** After failure, do we go back up to the nearest unexplored node (true), or do we reset to the top (false). **/
 	public static boolean marchUp =  false;
@@ -29,26 +29,60 @@ public class OptionsHolder {
 	/** When picking an already-sampled, but not fully-explored route to try, do we do it randomly, or just grab the first one? **/
 	public static boolean sampleRandom = true;
 	
+	/** When trying to expand the tree, do we prioritize adding new nodes or treat possibilities the same? **/ // Note -- true tends to just grab the first index resulting in bad things for very deep trees.
+	public static boolean PrioritizeNewNodes = false;
+	
 	/** Depth of the search (number of parameters down the tree) **/
 	public static int treeDepth = 8;
 	
-	public static int prefixLength = 4; //How many elements lead up to the repeated portion.
+	/** When we get to the end of the selection sequence, do we start picking again from the "periodic" portion (as opposed to looping back to choice 1. **/
+	public static boolean repeatSelectionInPeriodic = true;
+	
+	
+	public static int prefixLength = 8; //How many elements lead up to the repeated portion.
 	public static int periodicLength = 4; // How many elements are the repeated portion.
 	
 	/** List of possible actions at any point in this predefined sequence. Will wrap back to the first one whan each has been sampled from **/
 	
 	public static final int[][] ActionList = {
-		{0,2},
-		{18,19,23,24,25,26},
-		{13,14,15,16,17,18,19},
-		{49,50,51,52,53,54,55},
+
+		{0,1,2,3,4,5},
+		{25,26,27,28},
+		{17,18,19,20},
+		{49,50,51,52},
 		//
-		{0,1,2,3,4,5,6,7},
-		{65,66,67,68,69},
-		{0,1,2,3,4,5,6,7},
-		{59,60,61,62,63,64,65,66}
+		{0,1,2,3},
+		{45,46,47,48,49,50,51,52,53,54,55},
+		{0,1,2,3},
+		{45,46,47,48,49,50,51,52,53,54,55},
+		
+		
+		{0,1,2,3},
+		{38,39,40,41,42,43,44,45,46,47},
+		{0,1,2,3},
+		{38,39,40,41,42,43,44,45,46,47}
+//		
+//		
+//		{0,2},
+//		{18,19,23,24,25,26},
+//		{13,14,15,16,17,18,19},
+//		{49,50,51,52,53,54,55},
+//		//
+//		{0,1,2,3,4,5,6,7},
+//		{65,66,67,68,69},
+//		{0,1,2,3,4,5,6,7},
+//		{59,60,61,62,63,64,65,66}
 		};
 	
+	// Once we get to the end of the prefix + periodic, 
+	public static final int[][] DeviationList = {
+		{-2,-1,0,1,2},
+		{0,1,2},
+		{-2,-1,0,1,2}
+		
+		
+	
+	};
 	
 	
 	

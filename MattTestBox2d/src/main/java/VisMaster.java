@@ -31,7 +31,7 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	JTabbedPane DataTabs;
 	private ArrayList<TabbedPaneActivator> TabPanes= new ArrayList<TabbedPaneActivator>(); //List of all panes in the tabbed part
 	
-	public VisMaster(QWOPInterface QWOPHandler, TrialNode root, DataGrabber data){
+	public VisMaster(QWOPInterface QWOPHandler, TrialNode root, DataGrabber data, SinglePathViewer pathView){
 
 	    Container pane = this.getContentPane();
 	    pane.setLayout(new GridBagLayout());
@@ -44,7 +44,7 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	    DataConstraints.gridx = 0;
 	    DataConstraints.gridy = 0;
 	    DataConstraints.weightx = 0.2;
-	    DataConstraints.ipady = (int)(0.85*OptionsHolder.windowHeight);
+	    DataConstraints.ipady = (int)(0.88*OptionsHolder.windowHeight);
 	    
 	    DataTabs = new JTabbedPane();
 	    DataTabs.setBorder(BorderFactory.createRaisedBevelBorder());
@@ -87,6 +87,7 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	    TreeMaker = new TreePaneMaker(root);
 	    this.TreePane = TreeMaker.TreePanel;
 	    TreeMaker.setSnapshotPane(SnapshotMaker);
+	    TreeMaker.TreePanel.setSingleViewer(pathView);
 	    DataMaker.setTreePane(TreeMaker);
 	    
 		TreePane.setBorder(BorderFactory.createRaisedBevelBorder());

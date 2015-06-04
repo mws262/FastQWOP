@@ -33,7 +33,6 @@ public class QWOPInterface {
 	
 	public boolean visOn = false;
 	
-	public VisRunner visRun;
 	private boolean failFlag = false;
 	private Scheduler StepSched;
 	
@@ -52,11 +51,11 @@ public class QWOPInterface {
 		stepsInRun = 0;
 		failFlag = false; //Reset from previous failures.
 		// If we're visualizing, then either create the visualizer or pass it the new world we're working with.
-		if (visOn && visRun == null){
-			visRun = new VisRunner(game.getWorld());
-		}else if(visOn){
-			visRun.SwitchWorlds(game.getWorld());
-		}
+//		if (visOn && visRun == null){
+//			visRun = new VisRunner(game.getWorld());
+//		}else if(visOn){
+//			visRun.SwitchWorlds(game.getWorld());
+//		}
 		m_world.setContactListener(new CollisionListener(game,this));
 	}
 	/** Return the current physics world **/

@@ -18,6 +18,9 @@ public class ExhaustiveQwop {
 	public static ArrayList<Float> DistHolder = new ArrayList<Float>(); //keep a list of all the costs
 	public static ArrayList<Float> ValHolder = new ArrayList<Float>(); //keep a list of all the costs
 
+	
+	private static SinglePathViewer SpecificViewer;
+	
 	public ExhaustiveQwop() {
 		// TODO Auto-generated constructor stub
 	}
@@ -52,7 +55,7 @@ public class ExhaustiveQwop {
 		QWOPHandler.NewGame(OptionsHolder.visOn); //Get a new game going.
 //		RootNode.CaptureState(QWOPHandler);
 		int[] oldActions = {};
-		int[] bufferNew = new int[50]; //plenty big for storing new values since last fall.
+		int[] bufferNew = new int[500000]; //plenty big for storing new values since last fall.
 		Arrays.fill(bufferNew, -1);
 		int newGoodActions = 0;
 		
@@ -61,6 +64,8 @@ public class ExhaustiveQwop {
 		float LeastError = Float.MAX_VALUE;
 		float NewError = Float.MAX_VALUE;
 		
+		//Give the specific run viewer access to the physics engine and game.
+		SpecificViewer = new SinglePathViewer(QWOPHandler);
 		
 		// Node visualization stuff
 		DataGrabber saveInfo = new DataGrabber(); //Argument is how many times we get to 8th level do we have between file writes.
@@ -68,7 +73,7 @@ public class ExhaustiveQwop {
 		Scheduler Every8 = new Scheduler(); //This scheduler gets incremented every time we find a path that makes it out to 8 without falling.
 		Every8.addTask(saveInfo);
 		
-		VisMaster VisRoot = new VisMaster(QWOPHandler,RootNode,saveInfo);
+		VisMaster VisRoot = new VisMaster(QWOPHandler,RootNode,saveInfo,SpecificViewer);
 		Scheduler EveryEnd = new Scheduler(); //This scheduler gets incremented every time we fail.
 		VisRoot.setInterval(1);
 		VisRoot.TreeMaker.setInterval(500);
@@ -80,11 +85,16 @@ public class ExhaustiveQwop {
 		EveryEnd.addTask(VisRoot);
 		EveryEnd.addTask(VisRoot.TreeMaker);
 		EveryEnd.addTask(VisRoot.DataMaker);
-
+		EveryEnd.addTask(SpecificViewer); //Every end of the path, see if we've queued up any specific paths to view by hand.
+		
 		Scheduler EveryPhys = new Scheduler();
 		VisRoot.RunMaker.setInterval(1);
 		EveryPhys.addTask(VisRoot.RunMaker);
 		QWOPHandler.addScheduler(EveryPhys);
+		
+		//Hackish way of making sure that the specific run viewer has access to the Runner pane in the tabs.
+		SpecificViewer.runPane = VisRoot.RunMaker;
+		
 		
 		while (!finished){
 
@@ -131,13 +141,15 @@ public class ExhaustiveQwop {
 					NextNode.CaptureState(QWOPHandler);
 				}
 				//NEW NEW: Once we get past the intro 2 steps, we want to back up the state because we're looking for a set of 4 parameters which results in something reasonably close to periodic.
-				if(NextNode.TreeDepth == 4){
+				if(NextNode.TreeDepth == OptionsHolder.prefixLength){
 					BeginningState.CaptureState();
 					
-				}else if(NextNode.TreeDepth == 8){ //The end of the periodic part
+				}else if(NextNode.TreeDepth == OptionsHolder.prefixLength + OptionsHolder.periodicLength){ //The end of the periodic part
 					EndState.CaptureState();
+					
 					NewError = EndState.Compare(BeginningState);
 					NextNode.value = NewError; //Using the periodic error as the value for now.
+					NextNode.bestInBranch = NextNode.rawScore;
 					saveInfo.AddNonFailedNode(NextNode);
 					ValHolder.add(NewError);
 					Every8.Iterate();
@@ -193,9 +205,10 @@ public class ExhaustiveQwop {
 			
 
 			if (failed){ //If we fall, then remove this new node and check to see if we've completed any trees.
-
+				
 				CurrentNode.RemoveChild(NextNode);
 				DistHolder.add(-CurrentNode.rawScore);
+				CurrentNode.PropagateHighScore(CurrentNode.rawScore);
 				if (CurrentNode.TreeDepth>maxDepth) {
 					maxDepth = CurrentNode.TreeDepth; //Update the tree depth if we manage to go deeper.
 					VisRoot.TreeMaker.maxDepth = maxDepth;

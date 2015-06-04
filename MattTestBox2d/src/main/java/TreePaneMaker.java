@@ -53,6 +53,7 @@ public class TreePaneMaker implements Schedulable{
 	  /** This is the root node from which the tree will be built out of **/
 	  public TrialNode root;
 	  private SnapshotPaneMaker SnapshotPane;
+
 	  /** Object which holds current line data **/
 	  LineHolder Lines;
 	  
@@ -167,6 +168,7 @@ public class TreePaneMaker implements Schedulable{
     /** Jpanel inside the jframe **/
     class TreePane extends JPanel implements MouseListener, MouseMotionListener, MouseWheelListener,KeyListener{
   	  LineHolder Lines;
+	  private SinglePathViewer pathView;
   	  boolean mouseTrack = false;
 	  DecimalFormat df = new DecimalFormat("#.#");
 	  int countLastReport = 0; //Some info is only reported every handful of paint calls. Keep a counter.
@@ -279,9 +281,19 @@ public class TreePaneMaker implements Schedulable{
       	this.Lines = Lines;
       }
       
+      
+      /** Set the single path viewer so we can queue up selected nodes for path viewing **/
+      public void setSingleViewer(SinglePathViewer pathView){
+    	  this.pathView = pathView;
+      }
+      
+      
       /** Set the focused node **/
       public void setFocusNode(TrialNode focus){
     	  focusedNode = focus;
+			if(pathView != null){ //For now, queue it up also for next time the animation panel is running.
+				pathView.AddQueuedTrial(focusedNode);
+			}
       }
       
       /** Get the focused node **/
@@ -333,6 +345,9 @@ public class TreePaneMaker implements Schedulable{
 			focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
 			if (SnapshotPane != null){
 				SnapshotPane.setNode(focusedNode);
+			}
+			if(pathView != null){
+				pathView.AddQueuedTrial(focusedNode);
 			}
 			
 		}

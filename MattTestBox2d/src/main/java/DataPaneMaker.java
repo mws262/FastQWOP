@@ -93,7 +93,10 @@ public class DataPaneMaker implements Schedulable, ActionListener, TabbedPaneAct
     public void setTreePane(TreePaneMaker tree){
     	this.tree = tree;
     }
+    
+    /** Check if the bounds need expanding, tell JFreeChart to update, and set the bounds correctly **/
     public void update(){
+    	 data.UpdateBounds();
     	 chart.fireChartChanged();
     	 domainAxis.setRange(Range.scale(data.getXRange(ActivePlotIndex),1.1));
     	 rangeAxis.setRange(Range.scale(data.getYRange(ActivePlotIndex),1.1));
@@ -224,6 +227,7 @@ class CustomRenderer extends XYLineAndShapeRenderer {
 DataPaneMaker pane;
 Rectangle2D BigMarker = new Rectangle2D.Double( -5.0, -5.0, 10.0, 10.0 );
 Color SelectedColor = new Color(0.5f,1,0.5f);
+Color UnSelectedColor = new Color(1f,0.25f,0.25f);
     public CustomRenderer(boolean lines, boolean shapes, DataPaneMaker pane) {
         super(lines, shapes);
         this.pane = pane;
@@ -234,7 +238,7 @@ Color SelectedColor = new Color(0.5f,1,0.5f);
         if (col == pane.selectedPoint) {
             return SelectedColor;
         } else {
-            return super.getItemPaint(row, col);
+            return UnSelectedColor;
         }
     }
     @Override
