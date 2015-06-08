@@ -1,3 +1,4 @@
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
@@ -76,7 +77,7 @@ public class ExhaustiveQwop {
 		VisMaster VisRoot = new VisMaster(QWOPHandler,RootNode,saveInfo,SpecificViewer);
 		Scheduler EveryEnd = new Scheduler(); //This scheduler gets incremented every time we fail.
 		VisRoot.setInterval(1);
-		VisRoot.TreeMaker.setInterval(500);
+		VisRoot.TreeMaker.setInterval(100);
 		VisRoot.TreeMaker.DistHolder = DistHolder; //Now the treemaker has a reference to all the value and distance numbers for scaling purposes.
 		VisRoot.TreeMaker.ValHolder = ValHolder;
 
@@ -235,7 +236,18 @@ public class ExhaustiveQwop {
 				boolean ExploredFlag = CurrentNode.RemoveChild(NextNode);
 				
 				//Now we need to decide where to go back to.
-				if(OptionsHolder.marchUp){
+				if(VisRoot.TreeMaker.Override && !VisRoot.TreeMaker.OverrideNode.FullyExplored){ //This lets us explore a specific branch by overriding which node the process resets to.
+					CurrentNode = VisRoot.TreeMaker.OverrideNode;
+					VisRoot.TreeMaker.OverrideNode.ColorChildren(Color.ORANGE);
+					//Once we've exhausted our options, set back to root node and turn off this search option in the treemaker.
+					if(CurrentNode.FullyExplored || CurrentNode.DeadEnd){
+//						VisRoot.TreeMaker.OverrideNode.ColorChildren(Color.darkGray);//No special color once we've finished.
+
+						CurrentNode = RootNode;
+						VisRoot.TreeMaker.Override = false;
+						
+					}
+				}else if(OptionsHolder.marchUp){
 					//This method marches BACK UP the tree until we find an unexplored node to try.
 					while (ExploredFlag){ //Keep marching up the layers until we find one that isn't fully explored
 		

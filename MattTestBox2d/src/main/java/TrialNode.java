@@ -1,3 +1,4 @@
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
@@ -20,6 +21,9 @@ public class TrialNode {
 	boolean DeadEnd = false;
 	/** Is this node currently fully explored? i.e. everything below it has been explored **/
 	boolean FullyExplored = false;
+	
+	/** Color for this line **/
+	public Color nodeColor;
 	
 	/** Index of the control inside of the supplied set of control options in OptionsHolder **/
 	public final int ControlIndex;
@@ -58,16 +62,21 @@ public class TrialNode {
 	public boolean hiddenNode = false; //Should we not draw this node and all children?
 	
 	//Action list order and actions.
-	// for 1st depth, will pick one of 1st set of actions, etc.
-	// for trees greater depth than number of arrays below, it will back to the top.
 	public static final int[][] ActionList = OptionsHolder.ActionList;
+	
+	public static final int[][] DeviationsList = OptionsHolder.DeviationList;
 
+	public int[] OurPeriodicChoice = new int[OptionsHolder.periodicLength];
+	
 	/** Constructor for making any nodes below the root node **/
 	public TrialNode(TrialNode ParentAction, int ControlIndex) {
 		this.ParentNode = ParentAction;
 
 		TreeDepth = ParentAction.TreeDepth + 1; // When we make nodes, we go down the tree.
 		this.ControlIndex = ControlIndex;
+		
+
+		
 		
 		//Do we repeat the last 4 elements over and over or do we start the whole sequence over.
 		if(OptionsHolder.repeatSelectionInPeriodic && ParentNode.NodeSequence >= OptionsHolder.prefixLength){ //Only do this if we're past the prefix.
@@ -81,16 +90,45 @@ public class TrialNode {
 			
 			PotentialChildren = ActionList[NodeSequenceNext-1].length;
 			
+		}else if(OptionsHolder.goDeviations && ParentNode.NodeSequence >= OptionsHolder.prefixLength+OptionsHolder.periodicLength){
+			//We've made it past both periodic and prefix. Now we switch back to the same periodic one with a bit of deviation based on index.
+			OurPeriodicChoice = ParentNode.OurPeriodicChoice; //Copy the period from the previous node.
+			
+			NodeSequence = (ParentAction.NodeSequence-OptionsHolder.prefixLength-OptionsHolder.periodicLength)%OptionsHolder.periodicLength + OptionsHolder.periodicLength + OptionsHolder.prefixLength + 1;
+			int NodeSequenceNext = (ParentAction.NodeSequence-OptionsHolder.prefixLength-OptionsHolder.periodicLength + 1 )%OptionsHolder.periodicLength + OptionsHolder.periodicLength + OptionsHolder.prefixLength + 1;
+			ControlAction = DeviationsList[NodeSequence - 1 - OptionsHolder.periodicLength - OptionsHolder.prefixLength][ControlIndex] + OurPeriodicChoice[NodeSequence - 1 - OptionsHolder.periodicLength - OptionsHolder.prefixLength];
+			TestedChildren = new boolean[DeviationsList[NodeSequenceNext-1 - OptionsHolder.periodicLength - OptionsHolder.prefixLength].length]; //children belong to 2.
+			Arrays.fill(TestedChildren, false);
+			
+			PotentialChildren = DeviationsList[NodeSequenceNext-1 - OptionsHolder.periodicLength - OptionsHolder.prefixLength].length;
+			
+//			for (int i = 0; i<OurPeriodicChoice.length; i++){
+//				System.out.println(OurPeriodicChoice[i]);
+//			}
 		}else{
 			
 			NodeSequence = (ParentAction.NodeSequence%ActionList.length) + 1;
 			int NodeSequenceNext = ((ParentAction.NodeSequence + 1)%ActionList.length) + 1; //next action might wrap around.
 			
 			ControlAction = ActionList[NodeSequence-1][ControlIndex];
-			TestedChildren = new boolean[ActionList[NodeSequenceNext-1].length]; //children belong to 2.
+			if(OptionsHolder.goDeviations && NodeSequence == OptionsHolder.prefixLength+OptionsHolder.periodicLength){
+				TestedChildren = new boolean[DeviationsList[0].length]; //If we're at end of periodic and going deviations, then the next set of choices is from the differently-lengthed deviationslist.
+				PotentialChildren = DeviationsList[0].length;
+			}else{
+				TestedChildren = new boolean[ActionList[NodeSequenceNext-1].length]; //children belong to 2.
+				PotentialChildren = ActionList[NodeSequenceNext-1].length;
+			}
 			Arrays.fill(TestedChildren, false);
 			
-			PotentialChildren = ActionList[NodeSequenceNext-1].length;
+
+		}
+		
+		//If we're doing periodic+specified deviations, we need to keep or build a copy of that "periodic" part.
+		if(OptionsHolder.goDeviations){
+			OurPeriodicChoice = ParentNode.OurPeriodicChoice; //Copy the period from the previous node.
+			if(ParentNode.NodeSequence >= OptionsHolder.prefixLength && ParentNode.NodeSequence < OptionsHolder.prefixLength + OptionsHolder.periodicLength){ //And potentially add if the list is incomplete
+				OurPeriodicChoice[ParentNode.NodeSequence-OptionsHolder.prefixLength] = ControlAction;
+			}
 		}
 		
 		
@@ -267,6 +305,13 @@ public class TrialNode {
 		
 	}
 	
+	/** Color all of this node's children **/
+	public void ColorChildren(Color color){
+		nodeColor = color;
+		for(TrialNode t: ChildNodes){
+			t.ColorChildren(color);
+		}
+	}
 	///// Tree visualization methods end ///////
 	
 	/** If we've gotten beyond the "periodic" portion (8 usually), then propagate new high scores at failure back towards root. We stop at the beginning of the periodic portion. Thus, from 8 on, bestInBranch represents the BEST you can do from this node if you make good decisions **/
@@ -298,6 +343,11 @@ public class TrialNode {
 			current = current.ParentNode;
 			sequence[i] = current.ControlAction;
 		}
+
+		for (int i = 0; i< sequence.length; i++){
+			System.out.print(sequence[i] + ",");
+		}
+		System.out.println();
 		return sequence;
 		
 	}

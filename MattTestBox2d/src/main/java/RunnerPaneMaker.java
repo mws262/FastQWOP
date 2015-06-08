@@ -1,6 +1,7 @@
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
+import java.util.ArrayList;
 
 import javax.swing.JCheckBox;
 import javax.swing.JPanel;
@@ -32,7 +33,7 @@ public class RunnerPaneMaker implements Schedulable,TabbedPaneActivator{
 
 	public RunnerPaneMaker(QWOPInterface QWOPHandler) {
 		this.QWOPHandler = QWOPHandler;
-		RunPanel = new RunnerPane();
+		RunPanel = new RunnerPane(QWOPHandler);
 	}
 	
 	public void update(){
@@ -120,17 +121,31 @@ class RunnerPane extends JPanel{
 	float flipud = 1f;
 	float fliplr = 1f;
 	
-	Font bigFont = new Font("Ariel", Font.PLAIN, 16);
+	Font bigFont = new Font("Ariel", Font.BOLD, 16);
+	int vertTextSpacing = 18;
+	int vertTextAnchor = 50;
 	OptionsHolder options;
+	QWOPInterface QWOPHandler;
 	
 	int headpos = 0;
 
-	String label = "";
-	public void setLabel(String label){
-		this.label = label;
+	String prefixLabel = "";
+	String periodicLabel = "";
+	ArrayList<String> deviationLabel;
+	public void setLabel(String prefixLabel, String periodicLabel, ArrayList<String> deviationLabel){
+		this.prefixLabel = prefixLabel;
+		if(OptionsHolder.goDeviations){ //If we're doing it in terms of deviations, then keep these separate.
+			this.periodicLabel = periodicLabel;
+			this.deviationLabel = deviationLabel;
+		}else{ //Otherwise we throw them together since saying deviation isn't really accurate.
+			this.periodicLabel = periodicLabel;
+			for(String s: deviationLabel){
+				this.periodicLabel += s;
+			}
+		}
 	}
-	public RunnerPane(){
-
+	public RunnerPane(QWOPInterface QWOPHandler){
+		this.QWOPHandler = QWOPHandler;
 	}
 	
 	/** Give the visualizer a new world to work with. Saves creating too many new objects **/
@@ -144,16 +159,38 @@ class RunnerPane extends JPanel{
 	/** Main graphics for the runner! **/
     public void paintComponent(Graphics g){
     	super.paintComponent(g);
-    	
+
     	//Other Labels:
 		//Action sequence label
 		g.setFont(bigFont);
 		g.setColor(Color.BLACK);
-		if(label != ""){
-	    	g.drawString("Running selected sequence: ", 10,50);
-	    	g.drawString(label, 10, 75);
+		if(prefixLabel != ""){
+	    	g.drawString("Running selected sequence: ", 10,vertTextAnchor);
+	    	g.setColor(Color.RED);
+	    	g.drawString(prefixLabel, 10, vertTextAnchor + vertTextSpacing);
+	    	g.setColor(Color.GREEN);
+	    	g.drawString(periodicLabel, 10, vertTextAnchor + vertTextSpacing*2);
+	    	g.setColor(Color.ORANGE);
+	    	for (int i = 0; i<deviationLabel.size(); i++){
+		    	g.drawString(deviationLabel.get(i), 10, vertTextAnchor + vertTextSpacing*(3+i));
+	    	}
+	    	g.setColor(Color.BLACK);
 		}else{
 			g.drawString("Going through the tree.", 10,50);
+		}
+		
+		//This mess adds underlines under the currently executing action.
+		if(prefixLabel != ""){
+			int index = QWOPHandler.currentIndex;
+			if (index < OptionsHolder.prefixLength){
+				g.drawLine(index*30, vertTextAnchor + vertTextSpacing+1, 25+index*30, vertTextAnchor + vertTextSpacing+1);
+				g.drawLine(index*30, vertTextAnchor + vertTextSpacing+2, 25+index*30, vertTextAnchor + vertTextSpacing+2);
+			}else{
+				int depth = index/4;
+				index = (index-(OptionsHolder.prefixLength))%4;
+				g.drawLine(index*30, vertTextAnchor + depth*vertTextSpacing+1, 25+index*30, vertTextAnchor + depth*vertTextSpacing+1);
+				g.drawLine(index*30, vertTextAnchor + depth*vertTextSpacing+2, 25+index*30, vertTextAnchor + depth*vertTextSpacing+2);
+			}
 		}
     	
     	if(world != null){

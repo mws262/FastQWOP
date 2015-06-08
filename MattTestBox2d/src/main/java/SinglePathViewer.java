@@ -16,6 +16,10 @@ public class SinglePathViewer implements Schedulable{
 	public RunnerPaneMaker runPane;
 	public String sequence = "";
 	
+	public String prefixLabel = "";
+	public String periodicLabel = "";
+	public ArrayList<String> deviationLabel = new ArrayList<String>();
+	
 	public SinglePathViewer(QWOPInterface game) {
 		this.game = game;
 	}
@@ -38,21 +42,70 @@ public class SinglePathViewer implements Schedulable{
 			runPane.disable = false;
 			//Travel up the nodes to get the full sequence of actions (since traveling up is unique, but traveling down isn't).
 			TrialNode target = queuedEndPoints.get(0);
-			int[] control = new int[target.TreeDepth]; //I MIGHT BE OFF BY ONE, CHECK THIS TODO
-			for (int i = control.length-1; i >= 0; i--){
-				control[i] = target.ControlAction;
-				target = target.ParentNode;
-			}
+			int[] control = target.getSequence();
+//			int[] control = new int[target.TreeDepth]; //I MIGHT BE OFF BY ONE, CHECK THIS TODO
+//			for (int i = control.length-1; i >= 0; i--){
+//				control[i] = target.ControlAction;
+//				target = target.ParentNode;
+//			}
 			
 			
 			//Turn the sequence we're about to do into a string for display.
-			sequence = "";
-			for (int i = 0; i<control.length-1; i++){
-				sequence += (control[i] + ", ");	
-			}
-			sequence += (control[control.length-1] + "");	
+//			sequence = "";
+//			for (int i = 0; i<control.length-1; i++){
+//				sequence += (control[i] + ", ");	
+//			}
+//			sequence += (control[control.length-1] + "");	
+//			
+//			
+			periodicLabel = "";
+			prefixLabel = "";
+			deviationLabel.clear();
 			
-			runPane.RunPanel.setLabel(sequence);
+			for (int i = 0; i<OptionsHolder.prefixLength; i++){
+				if (i>control.length-1) break;
+				String divider = ", ";
+				if (i< OptionsHolder.prefixLength-1 && i < control.length-1){
+					if(control[i+1]<10){
+						divider += "  "; //If it's a single digit number, then add an extra space to make things even out.
+					}
+				}
+				prefixLabel += (control[i] + divider);
+//				if (i == OptionsHolder.prefixLength-2){
+//					prefixLabel += (control[OptionsHolder.prefixLength-1] + " "); //No trailing comma on this one.
+//				}
+			}
+			for (int i = OptionsHolder.prefixLength; i<OptionsHolder.prefixLength+OptionsHolder.periodicLength; i++){
+				if (i>control.length-1) break;
+				String divider = ", ";
+				if (i< OptionsHolder.prefixLength+OptionsHolder.periodicLength-1 && i < control.length-1){
+					if (control[i+1]<10){
+						divider += "  "; //If it's a single digit number, then add an extra space to make things even out.
+					}
+				}
+				periodicLabel += ( control[i] + divider );
+			}
+			int count = 0;
+			String devElement = "";
+			for (int i = OptionsHolder.prefixLength + OptionsHolder.periodicLength; i<control.length; i++){
+//				if (i>=control.length-1) break;
+				String divider = ", ";
+				if (i< control.length-1){
+					if (control[i+1]<10){
+						divider += "  "; //If it's a single digit number, then add an extra space to make things even out.
+					}
+				}
+				devElement += ( control[i] + divider );
+				count++;
+				if(count == OptionsHolder.periodicLength || i == control.length-1){ // add each periodic+deviation set as a separate string in the arraylist.
+					deviationLabel.add(devElement);
+					devElement = "";
+					count = 0;
+				}
+			}
+			
+			
+			runPane.RunPanel.setLabel(prefixLabel,periodicLabel,deviationLabel);
 //			OptionsHolder.visOn = true;
 //			game.repeatSequence = true;
 			game.NewGame(true);
@@ -62,8 +115,11 @@ public class SinglePathViewer implements Schedulable{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			sequence = "";
-			runPane.RunPanel.setLabel(sequence);
+			periodicLabel = "";
+			prefixLabel = "";
+			deviationLabel.clear();
+			
+			runPane.RunPanel.setLabel(prefixLabel,periodicLabel,deviationLabel);
 			queuedEndPoints.remove(0); //shift the queue down
 			runPane.disable = true;
 		}

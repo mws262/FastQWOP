@@ -19,7 +19,13 @@ public class OptionsHolder {
 	public static boolean DataToFile = false;
 	public static boolean KeepStates = true; //Do we record the state at every node. (performance issue?)
 	
+	/** When manipulating the tree (i.e. zooming) do we update instantly or accumulate for awhile first **/
+	public static boolean delayTreeMoves = true;
 	/* SEARCH OPTIONS */
+	
+	/** After prefix + periodic, then switch to deviations instead of going back to the same list. **/
+	public static boolean goDeviations = true;
+	
 	/** Repeat actions to attempt periodic motion? **/
 	public static boolean goPeriodic = false;
 	
@@ -36,7 +42,7 @@ public class OptionsHolder {
 	public static int treeDepth = 8;
 	
 	/** When we get to the end of the selection sequence, do we start picking again from the "periodic" portion (as opposed to looping back to choice 1. **/
-	public static boolean repeatSelectionInPeriodic = true;
+	public static boolean repeatSelectionInPeriodic = false; //DO NOT HAVE BOTH THIS AND GODEVIATIONS AT THE SAME TIME.
 	
 	
 	public static int prefixLength = 8; //How many elements lead up to the repeated portion.
@@ -58,9 +64,9 @@ public class OptionsHolder {
 		
 		
 		{0,1,2,3},
-		{38,39,40,41,42,43,44,45,46,47},
+		{36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53},
 		{0,1,2,3},
-		{38,39,40,41,42,43,44,45,46,47}
+		{36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53}
 //		
 //		
 //		{0,2},
@@ -76,8 +82,9 @@ public class OptionsHolder {
 	
 	// Once we get to the end of the prefix + periodic, 
 	public static final int[][] DeviationList = {
+		{0,1},
 		{-2,-1,0,1,2},
-		{0,1,2},
+		{0,1},
 		{-2,-1,0,1,2}
 		
 		

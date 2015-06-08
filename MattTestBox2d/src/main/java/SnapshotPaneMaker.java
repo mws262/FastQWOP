@@ -6,6 +6,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.util.ArrayList;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -129,12 +130,17 @@ class SnapshotPane extends JPanel{
 	TrialNode focusNode;
 	TrialNode prevNode;
 	int[] actionSequence;
-	String actions = "";
 	
 	Color ghostRunner = new Color(0,0,0,0.2f);
 	
-	Font bigFont = new Font("Ariel", Font.PLAIN, 24);
-	Font smallFont = new Font("Ariel", Font.PLAIN, 16);
+	Font bigFont = new Font("Ariel", Font.PLAIN, 16);
+	int vertTextSpacing = 17;
+	int vertTextAnchor = 50;
+
+
+	String prefixLabel = "";
+	String periodicLabel = "";
+	ArrayList<String> deviationLabel = new ArrayList<String>();
 
 	
 	public SnapshotPane(){
@@ -146,21 +152,103 @@ class SnapshotPane extends JPanel{
 		this.focusNode = focusNode; //assign the focused node to the input one
 		if (focusNode != null && focusNode.NodeState != null){
 			actionSequence = focusNode.getSequence(); //Ask that node for the sequence of actions leading up to this one.
-			 //Turn this into a string.
-			actions = "";
-			for (int i = 0; i<actionSequence.length-1; i++){
-				actions += actionSequence[i] + ", ";
-			}
-			actions += actionSequence[actionSequence.length - 1];
+//			 //Turn this into a string.
+//			actions = "";
+//			for (int i = 0; i<actionSequence.length-1; i++){
+//				actions += actionSequence[i] + ", ";
+//			}
+//			actions += actionSequence[actionSequence.length - 1];
 
-		
+
 			//If we've reached the end of our candidate periodic path, then we also want to display the state before the periodic portion.
 			if(focusNode.TreeDepth == OptionsHolder.prefixLength + OptionsHolder.periodicLength){
 				prevNode = focusNode.ParentNode.ParentNode.ParentNode.ParentNode;
 			}else{
 				prevNode = null;
 			}
+			periodicLabel = "";
+			prefixLabel = "";
+			deviationLabel.clear();
+			
+			for (int i = 0; i<OptionsHolder.prefixLength; i++){
+				if (i>actionSequence.length-1) break;
+				String divider = ", ";
+				if (i< OptionsHolder.prefixLength-1 && i < actionSequence.length-1){
+					if(actionSequence[i+1]<10){
+						divider += "  "; //If it's a single digit number, then add an extra space to make things even out.
+					}
+				}
+				prefixLabel += (actionSequence[i] + divider);
+//				if (i == OptionsHolder.prefixLength-2){
+//					prefixLabel += (actionSequence[OptionsHolder.prefixLength-1] + " "); //No trailing comma on this one.
+//				}
+			}
+			for (int i = OptionsHolder.prefixLength; i<OptionsHolder.prefixLength+OptionsHolder.periodicLength; i++){
+				if (i>actionSequence.length-1) break;
+				String divider = ", ";
+				if (i< OptionsHolder.prefixLength+OptionsHolder.periodicLength-1 && i < actionSequence.length-1){
+					if (actionSequence[i+1]<10){
+						divider += "  "; //If it's a single digit number, then add an extra space to make things even out.
+					}
+				}
+				periodicLabel += ( actionSequence[i] + divider );
+			}
+			int count = 0;
+			String devElement = "";
+			for (int i = OptionsHolder.prefixLength + OptionsHolder.periodicLength; i<actionSequence.length; i++){
+//				if (i>=actionSequence.length-1) break;
+				String divider = ", ";
+				if (i< actionSequence.length-1){
+					if (actionSequence[i+1]<10){
+						divider += "  "; //If it's a single digit number, then add an extra space to make things even out.
+					}
+				}
+				devElement += ( actionSequence[i] + divider );
+				count++;
+				if(count == OptionsHolder.periodicLength || i == actionSequence.length-1){ // add each periodic+deviation set as a separate string in the arraylist.
+					deviationLabel.add(devElement);
+					devElement = "";
+					count = 0;
+				}
+			}
+			
+//			periodicLabel = "";
+//			prefixLabel = "";
+//			deviationLabel.clear();
+//			
+//			for (int i = 0; i<OptionsHolder.prefixLength-1; i++){
+//				if (i>=actionSequence.length-1) break;
+//				prefixLabel += (actionSequence[i] + ", ");
+//				if (i == OptionsHolder.prefixLength-2){
+//					prefixLabel += (actionSequence[OptionsHolder.prefixLength-1] + " "); //No trailing comma on this one.
+//				}
+//			}
+//
+//			
+//			if(OptionsHolder.goDeviations){ //display deviations separately, else string everything after the prefix
+//				for (int i = OptionsHolder.prefixLength; i<OptionsHolder.prefixLength+OptionsHolder.periodicLength; i++){
+//					if (i>=actionSequence.length-1) break;
+//					periodicLabel += (", " + actionSequence[i]);
+//				}
+//				int count = 0;
+//				String devElement = "";
+//				for (int i = OptionsHolder.prefixLength + OptionsHolder.periodicLength; i<actionSequence.length; i++){
+////					if (i>=actionSequence.length-1) break;
+//					devElement += (", " + actionSequence[i]);
+//					count++;
+//					if(count == OptionsHolder.periodicLength || i == actionSequence.length-1){ // add each periodic+deviation set as a separate string in the arraylist.
+//						deviationLabel.add(devElement);
+//						devElement = "";
+//						count = 0;
+//					}
+//				}
+//			}else{
+//				for (int i = OptionsHolder.prefixLength; i<actionSequence.length; i++){
+//					periodicLabel += (", " + actionSequence[i]);
+//				}
+//			}
 		}
+//		System.out.println(deviationLabel.size());
 	}
 	
 
@@ -215,7 +303,7 @@ class SnapshotPane extends JPanel{
 	    	}
     		//If we have a node from before the periodic part, then loop back to display it with a ghosted color.
     		if (prevNode != null){
-    			g.setFont(smallFont);
+    			g.setFont(bigFont);
     			g.drawString("After periodic (" + (OptionsHolder.prefixLength+OptionsHolder.periodicLength) + " actions in)",100,700);
     			g.setColor(ghostRunner);
     			g.drawString("Before periodic (" + OptionsHolder.prefixLength + " actions in)",100,720);
@@ -228,10 +316,22 @@ class SnapshotPane extends JPanel{
     	}	
         	//Other Labels:
     		//Action sequence label	
-    		g.setFont(smallFont);
+    		g.setFont(bigFont);
     		g.setColor(Color.BLACK);
-        	g.drawString("Action Sequence:", 10,50);
-        	g.drawString(actions, 10, 75);
+    		if(prefixLabel != ""){
+    	    	g.drawString("Running selected sequence: ", 10,vertTextAnchor);
+    	    	g.setColor(Color.RED);
+    	    	g.drawString(prefixLabel, 10, vertTextAnchor + vertTextSpacing);
+    	    	g.setColor(Color.GREEN);
+    	    	g.drawString(periodicLabel, 10, vertTextAnchor + vertTextSpacing*2);
+    	    	g.setColor(Color.ORANGE);
+    	    	for (int i = 0; i<deviationLabel.size(); i++){
+    		    	g.drawString(deviationLabel.get(i), 10, vertTextAnchor + vertTextSpacing*(3+i));
+    	    	}
+    	    	g.setColor(Color.BLACK);
+    		}else{
+    			g.drawString("Going through the tree.", 10,50);
+    		}
     		
     		
     	}else{ //No active node being displayed

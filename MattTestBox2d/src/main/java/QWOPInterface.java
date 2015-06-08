@@ -22,7 +22,7 @@ public class QWOPInterface {
 	private final int delaymillis = (int)(timestep*1000);
 	
 	private int[] currentSequence = new int[50]; //Arbitrarily larger than needed.
-	private int currentIndex = 0; //counts number of actions taken in this run.
+	public int currentIndex = 0; //counts number of actions taken in this run.
 	
 	public int stepsInRun = 0; //Always counts up until a game reset. Helps ensure we know when we're doing something periodic.
 	

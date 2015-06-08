@@ -50,7 +50,12 @@ public class LineHolder {
 		LineList[fillIndex][1] = (int)parent.nodeLocation[1];
 		LineList[fillIndex][2] = (int)child.nodeLocation[0];
 		LineList[fillIndex][3] = (int)child.nodeLocation[1];
-		ColorList[fillIndex] = Color.BLACK;
+		if(parent.nodeColor != null){
+			ColorList[fillIndex] = parent.nodeColor;
+		}else{
+			ColorList[fillIndex] = Color.BLACK;
+		}
+
 		
 		NodeList[fillIndex][0] = parent;
 		NodeList[fillIndex][1] = child;
@@ -65,7 +70,7 @@ public class LineHolder {
 	public void AddLine(TrialNode parent, TrialNode child,int flag){
 		switch(flag){
 		case 1:
-			ColorList[fillIndex] = Color.RED;
+//			ColorList[fillIndex] = Color.RED;
 			break;
 		default:
 			break;

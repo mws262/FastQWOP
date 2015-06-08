@@ -78,7 +78,9 @@ public class TreePaneMaker implements Schedulable{
 	  //Internal thing to make sure that the data is there before I start to draw. 
 	  private boolean startDrawing = false;
 	  
-
+	  /** A node to potentially use over and over again as a starting point in the search if it's selected **/
+	  public boolean Override = false;
+	  public TrialNode OverrideNode; 
 	  
 	  /** The actual pane made by this maker **/
 	  public TreePane TreePanel;
@@ -190,7 +192,7 @@ public class TreePaneMaker implements Schedulable{
 //			viewSingle.RunQueued();
     	  if(!pauseDraw){ //Temporarily stop drawing for speed.
     	   Graphics2D g2 = (Graphics2D) g; //Casting to a graphics 2d object for more control.
-    	   g2.setStroke(new BasicStroke(0.1f));
+    	   g2.setStroke(new BasicStroke(0.5f));
     	   
     	  //Go through and draw all the lines defined.
     	  if (startDrawing){ //Make sure this exists.
@@ -200,7 +202,7 @@ public class TreePaneMaker implements Schedulable{
         		  clearBackground = false;
         		  
     		  }else{//allow a little bit of alpha to see where new branches are failing.
-        		  g.setColor(new Color(1f,1f,1f,0.1f)); //Write a new rectangle over the whole thing with some amount of alpha. This means that the failed branches will fade out.
+        		  g.setColor(new Color(1f,1f,1f,1f)); //Write a new rectangle over the whole thing with some amount of alpha. This means that the failed branches will fade out.
 
     		  }
     		  g.fillRect(0, 0, OptionsHolder.windowWidth,OptionsHolder.windowHeight);
@@ -216,8 +218,11 @@ public class TreePaneMaker implements Schedulable{
 	      		if(Lines.LineList[i][2] == 0 && Lines.LineList[i][3] == 0){ //If the x2 and y2 are 0, we've come to the end of actual lines.
 	      			break;
 	      		}
-	      		g2.setColor(Lines.ColorList[i]);
-	      		g2.setColor(getDepthColor(Lines.NodeList[i][1].TreeDepth));
+	      		if(!Lines.ColorList[i].equals(Color.BLACK)){
+						g2.setColor(Lines.ColorList[i]);
+				}else{
+					g2.setColor(getDepthColor(Lines.NodeList[i][1].TreeDepth));
+				}
 	      		g2.drawLine(Lines.LineList[i][0], Lines.LineList[i][1], Lines.LineList[i][2], Lines.LineList[i][3]);
 	      		
      			if (scoreDisplay && Lines.NodeList[i][1].DeadEnd){
@@ -228,7 +233,9 @@ public class TreePaneMaker implements Schedulable{
       				g2.setColor(Color.BLACK);
       			}else if (valDisplay && Lines.NodeList[i][1].DeadEnd){
      				if(Lines.NodeList[i][1].value != 0){
-	     				g2.setColor(getScoreColor(minValScaling, maxValScaling, Lines.NodeList[i][1].value));
+     					
+     					g2.setColor(getScoreColor(minValScaling, maxValScaling, Lines.NodeList[i][1].value));
+ 
 	     				g2.setFont(scaleFont.InterpolateFont(maxValScaling,minValScaling,Lines.NodeList[i][1].value*OptionsHolder.sizeFactor));
 	      				g2.drawString(df.format(Lines.NodeList[i][1].value), (int)Lines.NodeList[i][1].nodeLocation[0], (int)Lines.NodeList[i][1].nodeLocation[1]);
 	      				g2.setColor(Color.BLACK);
@@ -257,7 +264,7 @@ public class TreePaneMaker implements Schedulable{
   		  //Write how many games have been played:
     	  //note, still displays even when graphics are basically paused.
   		  g.setColor(Color.WHITE);
-  		g.setColor(new Color(1f,1f,1f,0.8f));
+  		g.setColor(new Color(1f,1f,1f,1f));
   		  g.fillRect(0,0,450,100);
   		  g.setColor(Color.BLACK);
   		  g.setFont(bigFont);
@@ -413,8 +420,7 @@ public class TreePaneMaker implements Schedulable{
 			focusedNode.SpaceBranch(0.1);
 			
 		}else{
-			root.ZoomNodes(1.1);
-			OptionsHolder.ChangeSizeFactor(1.1f);
+			SizeChanger*=1.1;
 		}
 	}else{
 		if(arg0.isAltDown()){
@@ -422,8 +428,7 @@ public class TreePaneMaker implements Schedulable{
 			focusedNode.SpaceBranch(-0.1);
 			
 		}else{
-			root.ZoomNodes(0.9);//positive mouse direction -> zoom out.;
-			OptionsHolder.ChangeSizeFactor(0.9f);
+			SizeChanger*=0.9;
 		}
 
 	}
@@ -431,6 +436,15 @@ public class TreePaneMaker implements Schedulable{
 		
 	}
 
+	float SizeChanger = 1;
+	
+	public void DoResize(){
+		if(SizeChanger != 1){
+			root.ZoomNodes(SizeChanger);
+			OptionsHolder.ChangeSizeFactor(SizeChanger);
+			SizeChanger = 1;
+		}
+	}
 	
 	// The following 2 methods are probably too complicated. when you push the arrow at the edge of one branch, this tries to jump to the nearest next branch node at the same depth.
 	/** Called by key listener to change our focused node to the next adjacent one in the +1 or -1 direction **/
@@ -557,9 +571,20 @@ public class TreePaneMaker implements Schedulable{
 
 	@Override
 	public void keyTyped(KeyEvent arg0) {
-		// TODO Auto-generated method stub
-		
-	}
+		switch(arg0.getKeyChar()){
+			case 't': // explore specific branch by setting an override node.
+				if(focusedNode != null){
+					OverrideNode = focusedNode;
+					Override = !Override;
+					if(Override){
+						OverrideNode.ColorChildren(Color.ORANGE);
+					}else{
+						OverrideNode.ColorChildren(Color.BLACK);
+					}
+				}
+				break;
+			}
+		}
    }
 
 	@Override
@@ -578,10 +603,16 @@ public class TreePaneMaker implements Schedulable{
 	public void DoScheduled() {
 		ScaleDist();
 		ScaleVal();	
+		if (OptionsHolder.delayTreeMoves){
+			TreePanel.DoResize(); 
+		}
 	}
 
 	@Override
 	public void DoEvery() {
+		if(!OptionsHolder.delayTreeMoves){
+			TreePanel.DoResize();
+		}
 		update();
 		
 	}
