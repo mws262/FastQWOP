@@ -21,11 +21,13 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	TreePaneMaker TreeMaker;
 	RunnerPaneMaker RunMaker;
 	SnapshotPaneMaker SnapshotMaker;
+	TreePaneMaker SelectTreeMaker;
 	
 	JPanel DataPane;
 	JPanel TreePane;
 	JPanel RunPane;
 	JPanel SnapshotPane;
+	JPanel SelectTreePane;
 	
 	
 	JTabbedPane DataTabs;
@@ -64,12 +66,17 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	    SnapshotMaker = new SnapshotPaneMaker();
 	    this.SnapshotPane = SnapshotMaker.SnapshotPanel;
 	    DataTabs.addTab("State Viewer", SnapshotPane);
+	    
+	    SelectTreeMaker = new TreePaneMaker(root,true);
+	    SelectTreePane = SelectTreeMaker.TreePanel;
+	    DataTabs.addTab("Select Tree Pane", SelectTreePane);
 
 	    
 	    //Handle listening to tab changes. Disable any updates on inactive tabs.
 	    TabPanes.add(DataMaker);
 	    TabPanes.add(RunMaker);
 	    TabPanes.add(SnapshotMaker);
+	    TabPanes.add(SelectTreeMaker);
 	    DataTabs.addChangeListener(this);
 	    
 	    //Make sure the currently active tab is actually being updated.
@@ -84,7 +91,7 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	    TreeConstraints.weightx = 0.8;
 	    TreeConstraints.ipady = OptionsHolder.windowHeight;
 	    
-	    TreeMaker = new TreePaneMaker(root);
+	    TreeMaker = new TreePaneMaker(root,false);
 	    this.TreePane = TreeMaker.TreePanel;
 	    TreeMaker.setSnapshotPane(SnapshotMaker);
 	    TreeMaker.TreePanel.setSingleViewer(pathView);
@@ -93,6 +100,7 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 		TreePane.setBorder(BorderFactory.createRaisedBevelBorder());
 	    pane.add(TreePane,TreeConstraints);
 
+	    TreeMaker.giveSlave(SelectTreeMaker); // Make SelectTreeMaker a slave pane to TreeMaker
 	    
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 

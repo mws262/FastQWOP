@@ -1,5 +1,5 @@
 //Simple tester to run sequences of actions based on the 0,WO,0,QP pattern
-
+//2, 25, 19, 51, 1, 53, 2, 51, 2, 40, 1, 52, 2, 37, 2, 35, 2, 52, 2, 36, 0, 52, 2, 37, 3, 36, 1, 38, 4, 52, 2, 39, 2, 45, 1, 40, 4, 54, 1, 39, 3, 44, 1, 48, 2, 41, 2, 48, 3, 50, 2, 47, 2, 49, 2, 49, 3, 49.
 
 public class TestSequence {
 

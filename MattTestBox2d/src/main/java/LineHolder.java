@@ -7,6 +7,7 @@ public class LineHolder {
 
 	public int numLines; //Total number of expected lines TODO: add error checking if the numbers don't match expected.
 	public int[][] LineList; //List of lines between nodes.
+	public int[][] LineList2; //List of lines between nodes -- for subtrees
 	public TrialNode[][] NodeList; //List of nodes corresponding to these lines.
 	public boolean[] LabelOn;
 	
@@ -19,6 +20,7 @@ public class LineHolder {
 	public LineHolder(int numLines) {
 		this.numLines = numLines;
 		LineList = new int[numLines][4]; // rows are x1 y1 x2 y2 across
+		LineList2 = new int[numLines][4]; // rows are x1 y1 x2 y2 across
 		ColorList = new Color[numLines];
 		NodeList = new TrialNode[numLines][2];
 		LabelOn = new boolean[numLines]; //Does this node have a text label?
@@ -50,6 +52,13 @@ public class LineHolder {
 		LineList[fillIndex][1] = (int)parent.nodeLocation[1];
 		LineList[fillIndex][2] = (int)child.nodeLocation[0];
 		LineList[fillIndex][3] = (int)child.nodeLocation[1];
+		
+		LineList2[fillIndex][0] = (int)parent.nodeLocation2[0];
+		LineList2[fillIndex][1] = (int)parent.nodeLocation2[1];
+		LineList2[fillIndex][2] = (int)child.nodeLocation2[0];
+		LineList2[fillIndex][3] = (int)child.nodeLocation2[1];
+		
+		
 		if(parent.nodeColor != null){
 			ColorList[fillIndex] = parent.nodeColor;
 		}else{
@@ -81,6 +90,11 @@ public class LineHolder {
 		LineList[fillIndex][2] = (int)child.nodeLocation[0];
 		LineList[fillIndex][3] = (int)child.nodeLocation[1];
 		
+		LineList2[fillIndex][0] = (int)parent.nodeLocation2[0];
+		LineList2[fillIndex][1] = (int)parent.nodeLocation2[1];
+		LineList2[fillIndex][2] = (int)child.nodeLocation2[0];
+		LineList2[fillIndex][3] = (int)child.nodeLocation2[1];
+		
 		NodeList[fillIndex][0] = parent;
 		NodeList[fillIndex][1] = child;
 		
@@ -99,6 +113,27 @@ public class LineHolder {
 			}
 			
 			candidateDist = (x-LineList[i][2])*(x-LineList[i][2]) + (y-LineList[i][3])*(y-LineList[i][3]); //least squares
+			if(candidateDist < closestDist && NodeList[i][1]!=(null)){
+				closestDist = candidateDist;
+				closestIndex = i;
+			}
+		}
+		
+			return NodeList[closestIndex][1];
+	}
+
+	/** Same as above but for sub-view trees **/
+	public TrialNode GetNearestNodeAlt(int x, int y){
+		int closestIndex = 0;
+		int closestDist = Integer.MAX_VALUE;
+		int candidateDist = 0;
+		
+		for (int i = 0; i<numLines; i++){ //We're always just looking at the second node in a line.
+			if (( LineList2[i][2] == 0 && LineList2[i][3] == 0) && ( LineList2[i-1][2] == 0 && LineList2[i-1][3] == 0)){
+				break; // If the x and y are 0 twice in a row, then we've reached the end of the list.	
+			}
+			
+			candidateDist = (x-LineList2[i][2])*(x-LineList2[i][2]) + (y-LineList2[i][3])*(y-LineList2[i][3]); //least squares
 			if(candidateDist < closestDist && NodeList[i][1]!=(null)){
 				closestDist = candidateDist;
 				closestIndex = i;

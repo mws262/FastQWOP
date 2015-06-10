@@ -271,7 +271,7 @@ public class QWOPGame{// extends JFrame{
         BodyDef TrackDef = new BodyDef();
         TrackBody = m_world.createBody(TrackDef);
         EdgeShape TrackShape = new EdgeShape();
-        TrackShape.set(new Vec2(-100.0f, TrackPosY), new Vec2(500.0f, TrackPosY));
+        TrackShape.set(new Vec2(-100.0f, TrackPosY), new Vec2(2000.0f, TrackPosY));
         Fixture TrackFix = TrackBody.createFixture(TrackShape, 0.0f);
         
         TrackFix.setFriction(TrackFric);

@@ -5,6 +5,9 @@ import java.util.Random;
 
 public class TrialNode {
 	
+	/** if this branch is being viewed separately, we will also be calculating alternative node positions, etc **/
+	public boolean altTree = false;
+	
 	/** Raw score of this node's state **/
 	public float rawScore = 0;
 	/** Differential score (thisScore-prevStateScore) **/
@@ -61,6 +64,11 @@ public class TrialNode {
 	public boolean LabelOn = false; //Will this node have a text label?
 	public boolean hiddenNode = false; //Should we not draw this node and all children?
 	
+	/** These node locations are secondary for if this node is part of a subview tree (i.e. rarely used) **/
+	public float[] nodeLocation2 = new float[2]; //Location that this node appears on the tree visualization
+	public double nodeAngle2 = 0; //Keep track of the angle that the line previous node to this node makes.
+	public double sweepAngle2 = 2*Math.PI;
+	
 	//Action list order and actions.
 	public static final int[][] ActionList = OptionsHolder.ActionList;
 	
@@ -72,17 +80,18 @@ public class TrialNode {
 	public TrialNode(TrialNode ParentAction, int ControlIndex) {
 		this.ParentNode = ParentAction;
 
+		int prefix = OptionsHolder.prefixLength;
+		int periodic = OptionsHolder.periodicLength;
+		
+		
 		TreeDepth = ParentAction.TreeDepth + 1; // When we make nodes, we go down the tree.
 		this.ControlIndex = ControlIndex;
 		
-
-		
-		
 		//Do we repeat the last 4 elements over and over or do we start the whole sequence over.
-		if(OptionsHolder.repeatSelectionInPeriodic && ParentNode.NodeSequence >= OptionsHolder.prefixLength){ //Only do this if we're past the prefix.
+		if(OptionsHolder.repeatSelectionInPeriodic && ParentNode.NodeSequence >= prefix){ //Only do this if we're past the prefix.
 			
-			NodeSequence = (ParentAction.NodeSequence-OptionsHolder.prefixLength)%OptionsHolder.periodicLength + 1 + OptionsHolder.prefixLength;
-			int NodeSequenceNext = (ParentAction.NodeSequence-OptionsHolder.prefixLength + 1)%OptionsHolder.periodicLength + 1+ OptionsHolder.prefixLength;
+			NodeSequence = (ParentAction.NodeSequence-prefix)%periodic + 1 + prefix;
+			int NodeSequenceNext = (ParentAction.NodeSequence-prefix + 1)%periodic + 1+ prefix;
 			
 			ControlAction = ActionList[NodeSequence - 1][ControlIndex];
 			TestedChildren = new boolean[ActionList[NodeSequenceNext-1].length]; //children belong to 2.
@@ -90,28 +99,33 @@ public class TrialNode {
 			
 			PotentialChildren = ActionList[NodeSequenceNext-1].length;
 			
-		}else if(OptionsHolder.goDeviations && ParentNode.NodeSequence >= OptionsHolder.prefixLength+OptionsHolder.periodicLength){
+		}else if(OptionsHolder.goDeviations && ParentNode.NodeSequence >= prefix+periodic){
 			//We've made it past both periodic and prefix. Now we switch back to the same periodic one with a bit of deviation based on index.
 			OurPeriodicChoice = ParentNode.OurPeriodicChoice; //Copy the period from the previous node.
 			
-			NodeSequence = (ParentAction.NodeSequence-OptionsHolder.prefixLength-OptionsHolder.periodicLength)%OptionsHolder.periodicLength + OptionsHolder.periodicLength + OptionsHolder.prefixLength + 1;
-			int NodeSequenceNext = (ParentAction.NodeSequence-OptionsHolder.prefixLength-OptionsHolder.periodicLength + 1 )%OptionsHolder.periodicLength + OptionsHolder.periodicLength + OptionsHolder.prefixLength + 1;
-			ControlAction = DeviationsList[NodeSequence - 1 - OptionsHolder.periodicLength - OptionsHolder.prefixLength][ControlIndex] + OurPeriodicChoice[NodeSequence - 1 - OptionsHolder.periodicLength - OptionsHolder.prefixLength];
-			TestedChildren = new boolean[DeviationsList[NodeSequenceNext-1 - OptionsHolder.periodicLength - OptionsHolder.prefixLength].length]; //children belong to 2.
+			NodeSequence = (ParentAction.NodeSequence-prefix-periodic)%periodic + periodic + prefix + 1;
+			int NodeSequenceNext = (ParentAction.NodeSequence-prefix-periodic + 1 )%periodic + periodic + prefix + 1;
+			ControlAction = DeviationsList[NodeSequence - 1 - periodic - prefix][ControlIndex] + OurPeriodicChoice[NodeSequence - 1 - periodic - prefix];
+			TestedChildren = new boolean[DeviationsList[NodeSequenceNext-1 - periodic - prefix].length]; //children belong to 2.
 			Arrays.fill(TestedChildren, false);
 			
-			PotentialChildren = DeviationsList[NodeSequenceNext-1 - OptionsHolder.periodicLength - OptionsHolder.prefixLength].length;
+			PotentialChildren = DeviationsList[NodeSequenceNext-1 - periodic - prefix].length;
 			
 //			for (int i = 0; i<OurPeriodicChoice.length; i++){
-//				System.out.println(OurPeriodicChoice[i]);
+//				System.out.print(OurPeriodicChoice[i]+",");
 //			}
+//			System.out.println();
+//			System.out.println(NodeSequence);
+//			System.out.println(NodeSequenceNext);
+//			System.out.println("periodic: " + OurPeriodicChoice[NodeSequence - 1 - periodic - prefix]);
+//			System.out.println("deviation: " + DeviationsList[NodeSequence - 1 - periodic - prefix][ControlIndex]);
 		}else{
-			
+//			System.out.println("bug" + ParentNode.NodeSequence);
 			NodeSequence = (ParentAction.NodeSequence%ActionList.length) + 1;
 			int NodeSequenceNext = ((ParentAction.NodeSequence + 1)%ActionList.length) + 1; //next action might wrap around.
 			
 			ControlAction = ActionList[NodeSequence-1][ControlIndex];
-			if(OptionsHolder.goDeviations && NodeSequence == OptionsHolder.prefixLength+OptionsHolder.periodicLength){
+			if(OptionsHolder.goDeviations && NodeSequence == prefix+periodic){
 				TestedChildren = new boolean[DeviationsList[0].length]; //If we're at end of periodic and going deviations, then the next set of choices is from the differently-lengthed deviationslist.
 				PotentialChildren = DeviationsList[0].length;
 			}else{
@@ -122,19 +136,37 @@ public class TrialNode {
 			
 
 		}
+			
+		if(OptionsHolder.treeVisOn){
+			CalcNodePos();
+			if(ParentNode.altTree){
+				altTree = true;
+				CalcAltNodePos();
+			}
+		}
 		
 		//If we're doing periodic+specified deviations, we need to keep or build a copy of that "periodic" part.
 		if(OptionsHolder.goDeviations){
 			OurPeriodicChoice = ParentNode.OurPeriodicChoice; //Copy the period from the previous node.
-			if(ParentNode.NodeSequence >= OptionsHolder.prefixLength && ParentNode.NodeSequence < OptionsHolder.prefixLength + OptionsHolder.periodicLength){ //And potentially add if the list is incomplete
-				OurPeriodicChoice[ParentNode.NodeSequence-OptionsHolder.prefixLength] = ControlAction;
+			if(ParentNode.NodeSequence >= prefix && ParentNode.NodeSequence < prefix + periodic){ //And potentially add if the list is incomplete
+				OurPeriodicChoice[ParentNode.NodeSequence-prefix] = ControlAction;
+//				if(altTree){
+//					System.out.println("We've changed the periodic while on an alt tree");
+//				}
 			}
 		}
+
 		
-		
-		if(OptionsHolder.treeVisOn){
-			CalcNodePos();
-		}
+//		//If we're doing periodic+specified deviations, we need to keep or build a copy of that "periodic" part.
+//		if(OptionsHolder.goDeviations){
+//			OurPeriodicChoice = ParentNode.OurPeriodicChoice; //Copy the period from the previous node.
+//			if(NodeSequence >= prefix && NodeSequence < prefix + periodic){ //And potentially add if the list is incomplete
+//				OurPeriodicChoice[NodeSequence-prefix] = ControlAction;
+////				if(altTree){
+////					System.out.println("We've changed the periodic while on an alt tree");
+////				}
+//			}
+//		}
 	}
 	
 	/** Constructor for creating a root node. **/
@@ -174,13 +206,50 @@ public class TrialNode {
 				nodeAngle = ParentNode.nodeAngle - sweepAngle/2. + (double)ControlIndex * sweepAngle/(double)(ParentNode.PotentialChildren-1);
 			}else{
 				sweepAngle = ParentNode.sweepAngle; //Only reduce the sweep angle if the parent one had more than one child.
-				nodeAngle = Math.PI/2;//sweepAngle/(ParentNode.PotentialChildren-1); //TODO make sure this is right, but if we have 1 or less child nodes from the parent, then the angle should go straight out in the direction the parent was also going.
+				nodeAngle = ParentNode.nodeAngle;//sweepAngle/(ParentNode.PotentialChildren-1); //TODO make sure this is right, but if we have 1 or less child nodes from the parent, then the angle should go straight out in the direction the parent was also going.
 			}
 		}
 
 		nodeLocation[0] = (float) (ParentNode.nodeLocation[0] + OptionsHolder.edgeLength*Math.cos(nodeAngle));
 		nodeLocation[1] = (float) (ParentNode.nodeLocation[1] + OptionsHolder.edgeLength*Math.sin(nodeAngle));
 	}
+	
+	/** Just for node visualization -- calculate the new node location on the diagram **/
+	public void CalcAltNodePos(){
+		
+			if (ParentNode.PotentialChildren > 1){ //Catch the div by 0
+				sweepAngle2 = ParentNode.sweepAngle2/(2);
+				nodeAngle2 = ParentNode.nodeAngle2 - sweepAngle2/2. + (double)ControlIndex * sweepAngle2/(double)(ParentNode.PotentialChildren-1);
+			}else{
+				sweepAngle2 = ParentNode.sweepAngle2; //Only reduce the sweep angle if the parent one had more than one child.
+				nodeAngle2 = ParentNode.nodeAngle2;//sweepAngle/(ParentNode.PotentialChildren-1); //TODO make sure this is right, but if we have 1 or less child nodes from the parent, then the angle should go straight out in the direction the parent was also going.
+			}
+		nodeLocation2[0] = (float) (ParentNode.nodeLocation2[0] + OptionsHolder.edgeLengthAlt*Math.cos(nodeAngle2));
+		nodeLocation2[1] = (float) (ParentNode.nodeLocation2[1] + OptionsHolder.edgeLengthAlt*Math.sin(nodeAngle2));
+	}
+	
+	
+	public void MakeAltTree(boolean newroot){ //Newroot -- should we treat this node as the new root of our alternate tree?
+		altTree = true;
+		if(newroot){
+			sweepAngle2 = 2*Math.PI;
+			if ( PotentialChildren > 1 ){ //Catch the div by 0
+				nodeAngle2 = 0. - sweepAngle2/2. + (double)ControlIndex * sweepAngle2/(double)(PotentialChildren-1);
+			}else{
+				nodeAngle2 = Math.PI/2;
+			}
+			nodeLocation2[0] = 400;
+			nodeLocation2[1] = 400;
+
+		}else{
+			CalcAltNodePos();
+		}
+		
+		for (TrialNode t : ChildNodes){
+			t.MakeAltTree(false);
+		}
+	}
+	
 	
 	/** Get the list of all visualization nodes lines which lie at and below this one. **/
 	public LineHolder GetNodeLines(){ //This is the top level one which has no arguments for the sake of simplicity.
@@ -236,6 +305,16 @@ public class TrialNode {
 			ChildNodes.get(i).ShiftNodes(x,y);
 		}
 	}
+	/** Just move nodes in the sub-view panel **/
+	public void ShiftNodesAlt(int x,int y){
+		
+		nodeLocation2[0] += x;
+		nodeLocation2[1] += y;
+		
+		for (int i = 0; i<ChildNodes.size(); i++){
+			ChildNodes.get(i).ShiftNodesAlt(x,y);
+		}
+	}
 	/** Rotates everything below this node about this node's parent dot **/
 	public void RotateBranch(double angle){
 
@@ -275,6 +354,45 @@ public class TrialNode {
 		}
 	}
 	
+	/** Rotates everything below this node about this node's parent dot **/
+	public void RotateBranchAlt(double angle){
+
+		float relX = nodeLocation2[0] - ParentNode.nodeLocation2[0];
+		float relY = nodeLocation2[1] - ParentNode.nodeLocation2[1];
+
+		float newRelX = (float)(relX*(Math.cos(nodeAngle2)*(Math.cos(nodeAngle2)*Math.cos(angle) - Math.sin(nodeAngle2)*Math.sin(angle)) + Math.sin(nodeAngle2)*(Math.cos(nodeAngle2)*Math.sin(angle) + Math.cos(angle)*Math.sin(nodeAngle2))) - relY*(Math.cos(nodeAngle2)*(Math.cos(nodeAngle2)*Math.sin(angle) + Math.cos(angle)*Math.sin(nodeAngle2)) - Math.sin(nodeAngle2)*(Math.cos(nodeAngle2)*Math.cos(angle) - Math.sin(nodeAngle2)*Math.sin(angle))));
+		float newRelY = (float)(relX*(Math.cos(nodeAngle2)*(Math.cos(nodeAngle2)*Math.sin(angle) + Math.cos(angle)*Math.sin(nodeAngle2)) - Math.sin(nodeAngle2)*(Math.cos(nodeAngle2)*Math.cos(angle) - Math.sin(nodeAngle2)*Math.sin(angle))) + relY*(Math.cos(nodeAngle2)*(Math.cos(nodeAngle2)*Math.cos(angle) - Math.sin(nodeAngle2)*Math.sin(angle)) + Math.sin(nodeAngle2)*(Math.cos(nodeAngle2)*Math.sin(angle) + Math.cos(angle)*Math.sin(nodeAngle2))));
+		
+		nodeLocation2[0] = (newRelX + ParentNode.nodeLocation2[0]);
+		nodeLocation2[1] = (newRelY + ParentNode.nodeLocation2[1]);
+		
+		nodeAngle2 += angle; //Change the angle of this node -- mostly for bookkeeping at this point.	
+		
+		for (int i = 0; i<ChildNodes.size(); i++){ //Now do the same for all nodes below this one.
+			ChildNodes.get(i).RotateBranchAlt(angle,ParentNode); 
+		}
+	}
+	
+	/** Rotates everything from this point on about a SPECIFIED node **/
+	public void RotateBranchAlt(double angle, TrialNode fulcrum){
+		
+		float relX = nodeLocation2[0] - fulcrum.nodeLocation2[0];
+		float relY = nodeLocation2[1] - fulcrum.nodeLocation2[1];
+		
+		//Compound rotation origrot*Rot*origrot' -- derived symbolically.
+		float newRelX = (float)(relX*(Math.cos(nodeAngle2)*(Math.cos(nodeAngle2)*Math.cos(angle) - Math.sin(nodeAngle2)*Math.sin(angle)) + Math.sin(nodeAngle2)*(Math.cos(nodeAngle2)*Math.sin(angle) + Math.cos(angle)*Math.sin(nodeAngle2))) - relY*(Math.cos(nodeAngle2)*(Math.cos(nodeAngle2)*Math.sin(angle) + Math.cos(angle)*Math.sin(nodeAngle2)) - Math.sin(nodeAngle2)*(Math.cos(nodeAngle2)*Math.cos(angle) - Math.sin(nodeAngle2)*Math.sin(angle))));
+		float newRelY = (float)(relX*(Math.cos(nodeAngle2)*(Math.cos(nodeAngle2)*Math.sin(angle) + Math.cos(angle)*Math.sin(nodeAngle2)) - Math.sin(nodeAngle2)*(Math.cos(nodeAngle2)*Math.cos(angle) - Math.sin(nodeAngle2)*Math.sin(angle))) + relY*(Math.cos(nodeAngle2)*(Math.cos(nodeAngle2)*Math.cos(angle) - Math.sin(nodeAngle2)*Math.sin(angle)) + Math.sin(nodeAngle2)*(Math.cos(nodeAngle2)*Math.sin(angle) + Math.cos(angle)*Math.sin(nodeAngle2))));
+		
+		nodeLocation2[0] = (newRelX + fulcrum.nodeLocation2[0]);
+		nodeLocation2[1] = (newRelY + fulcrum.nodeLocation2[1]);
+		
+		nodeAngle2 += angle; //Change the angle of this node -- mostly for bookkeeping at this point.	
+		
+		for (int i = 0; i<ChildNodes.size(); i++){ //Now do the same for all nodes below this one.
+			ChildNodes.get(i).RotateBranchAlt(angle,fulcrum); 
+		}
+	}
+	
 	/** Spread a branch out (or contract it) by a given increment **/
 	public void SpaceBranch(double angle){
 		sweepAngle += angle; //Change the angle that nodes sweep out from this one.
@@ -283,10 +401,25 @@ public class TrialNode {
 		}	
 	}
 	
+	/** Spread a branch out (or contract it) by a given increment **/
+	public void SpaceBranchAlt(double angle){
+		sweepAngle2 += angle; //Change the angle that nodes sweep out from this one.
+		for (int i = 0; i<ChildNodes.size(); i++){
+			ChildNodes.get(i).RotateBranchAlt(-angle/2+angle/PotentialChildren*ChildNodes.get(i).ControlIndex,this);		
+		}	
+	}
+	
 	/** Make it bigger/smaller. This version assumes that this is the root about which zooming occurs **/
 	public void ZoomNodes(double zoomFactor){
 		for (int i = 0; i<ChildNodes.size(); i++){ //Now do the same for all nodes below this one.
 			ChildNodes.get(i).ZoomNodes(zoomFactor,this);
+		}
+	}
+	
+	/** Make it bigger/smaller. This version assumes that this is the root about which zooming occurs **/
+	public void ZoomNodesAlt(double zoomFactor){
+		for (int i = 0; i<ChildNodes.size(); i++){ //Now do the same for all nodes below this one.
+			ChildNodes.get(i).ZoomNodesAlt(zoomFactor,this);
 		}
 	}
 	
@@ -301,6 +434,20 @@ public class TrialNode {
 		
 		for (int i = 0; i<ChildNodes.size(); i++){ //Now do the same for all nodes below this one.
 			ChildNodes.get(i).ZoomNodes(zoomFactor,zoomRoot);
+		}
+		
+	}
+	/** Make it bigger/smaller. This version is for recursing through the children. **/
+	public void ZoomNodesAlt(double zoomFactor, TrialNode zoomRoot){
+		
+		float relX = nodeLocation2[0] - zoomRoot.nodeLocation2[0];
+		float relY = nodeLocation2[1] - zoomRoot.nodeLocation2[1];
+		
+		nodeLocation2[0] = (float) (relX*zoomFactor + zoomRoot.nodeLocation2[0]);
+		nodeLocation2[1] = (float) (relY*zoomFactor + zoomRoot.nodeLocation2[1]);
+		
+		for (int i = 0; i<ChildNodes.size(); i++){ //Now do the same for all nodes below this one.
+			ChildNodes.get(i).ZoomNodesAlt(zoomFactor,zoomRoot);
 		}
 		
 	}
@@ -343,11 +490,11 @@ public class TrialNode {
 			current = current.ParentNode;
 			sequence[i] = current.ControlAction;
 		}
-
-		for (int i = 0; i< sequence.length; i++){
-			System.out.print(sequence[i] + ",");
-		}
-		System.out.println();
+//
+//		for (int i = 0; i< sequence.length; i++){
+//			System.out.print(sequence[i] + ",");
+//		}
+//		System.out.println();
 		return sequence;
 		
 	}

@@ -85,6 +85,7 @@ public class ExhaustiveQwop {
 		
 		EveryEnd.addTask(VisRoot);
 		EveryEnd.addTask(VisRoot.TreeMaker);
+		EveryEnd.addTask(VisRoot.SelectTreeMaker);
 		EveryEnd.addTask(VisRoot.DataMaker);
 		EveryEnd.addTask(SpecificViewer); //Every end of the path, see if we've queued up any specific paths to view by hand.
 		
@@ -104,15 +105,20 @@ public class ExhaustiveQwop {
 			//Also, we don't need to reconstruct the path if we're choosing a new action right at the starting decision.
 			//THIS IS FOR MARCHING UP THE TREE WHEN RESETTING
 			if (failed && (CurrentNode.TreeDepth != 0)){ //If we failed earlier, we need to go back and do all the original actions before exploring the new path.
-				oldActions = new int[CurrentNode.TreeDepth];
-				oldActions[oldActions.length-1] = CurrentNode.EchoControl(); //Last cached action will be the current node's action.
-				
-				NextNode = CurrentNode.ParentNode;
-				for (int i = 0; i<oldActions.length-1; i++){ //Now go back through all the parent nodes to find their actions up the tree
-					oldActions[oldActions.length-2-i] = NextNode.EchoControl();
-					NextNode = NextNode.ParentNode;
-				}
+//				oldActions = new int[CurrentNode.TreeDepth];
+//				oldActions[oldActions.length-1] = CurrentNode.EchoControl(); //Last cached action will be the current node's action.
+//				
+//				NextNode = CurrentNode.ParentNode;
+//				for (int i = 0; i<oldActions.length-1; i++){ //Now go back through all the parent nodes to find their actions up the tree
+//					oldActions[oldActions.length-2-i] = NextNode.EchoControl();
+//					NextNode = NextNode.ParentNode;
+//				}
 			
+				oldActions = CurrentNode.getSequence();
+//				for (int i = 0; i < oldActions.length; i++){
+//					System.out.print(oldActions[i] + ", ");
+//				}
+//				System.out.println();
 				//If we failed earlier, we'll run all those old actions we figured out above.
 				QWOPHandler.NewGame(OptionsHolder.visOn); //Start a new game.
 				try {
@@ -206,7 +212,7 @@ public class ExhaustiveQwop {
 			
 
 			if (failed){ //If we fall, then remove this new node and check to see if we've completed any trees.
-				
+//				if(CurrentNode.TreeDepth>11){ System.out.println("fail");System.out.println();}
 				CurrentNode.RemoveChild(NextNode);
 				DistHolder.add(-CurrentNode.rawScore);
 				CurrentNode.PropagateHighScore(CurrentNode.rawScore);
@@ -236,17 +242,20 @@ public class ExhaustiveQwop {
 				boolean ExploredFlag = CurrentNode.RemoveChild(NextNode);
 				
 				//Now we need to decide where to go back to.
-				if(VisRoot.TreeMaker.Override && !VisRoot.TreeMaker.OverrideNode.FullyExplored){ //This lets us explore a specific branch by overriding which node the process resets to.
-					CurrentNode = VisRoot.TreeMaker.OverrideNode;
-					VisRoot.TreeMaker.OverrideNode.ColorChildren(Color.ORANGE);
-					//Once we've exhausted our options, set back to root node and turn off this search option in the treemaker.
-					if(CurrentNode.FullyExplored || CurrentNode.DeadEnd){
-//						VisRoot.TreeMaker.OverrideNode.ColorChildren(Color.darkGray);//No special color once we've finished.
-
-						CurrentNode = RootNode;
-						VisRoot.TreeMaker.Override = false;
-						
-					}
+				if(VisRoot.TreeMaker.Override){ //This lets us explore a specific branch by overriding which node the process resets to.
+//					if(!VisRoot.TreeMaker.OverrideNode.FullyExplored){
+						CurrentNode = VisRoot.TreeMaker.OverrideNode;
+						VisRoot.TreeMaker.OverrideNode.ColorChildren(Color.ORANGE);
+						//Once we've exhausted our options, set back to root node and turn off this search option in the treemaker.
+						if(CurrentNode.FullyExplored || CurrentNode.DeadEnd){
+	//						VisRoot.TreeMaker.OverrideNode.ColorChildren(Color.darkGray);//No special color once we've finished.
+							VisRoot.TreeMaker.OverrideNode.ColorChildren(Color.BLACK);
+							CurrentNode = RootNode;
+							VisRoot.TreeMaker.Override = false;
+							System.out.println("Done with subtree.");
+							
+						}
+//					}
 				}else if(OptionsHolder.marchUp){
 					//This method marches BACK UP the tree until we find an unexplored node to try.
 					while (ExploredFlag){ //Keep marching up the layers until we find one that isn't fully explored

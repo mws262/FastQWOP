@@ -29,9 +29,11 @@ import java.awt.event.MouseWheelListener;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 
-public class TreePaneMaker implements Schedulable{
+public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 
 	private int interval = 1;
+	private boolean activeTab = true;
+	private boolean slave = false; //If it's a slave, then it's just for viewing specific trees and should not display as much info.
 	
 	public static final String[] instructions = {
 		"Left click & drag pans.",
@@ -85,6 +87,7 @@ public class TreePaneMaker implements Schedulable{
 	  /** The actual pane made by this maker **/
 	  public TreePane TreePanel;
 	  
+	  private TreePaneMaker slaveMaker;
 	  
 	  //hold the time that the last drawing happened:
 	  long lastTime;
@@ -96,17 +99,28 @@ public class TreePaneMaker implements Schedulable{
 	  Font bigFont = new Font ("Ariel", style , 36);
 	  Font smallFont = new Font("Ariel",style, 14);
 	  
-	  public FontScaler scaleFont = new FontScaler(3,30,21);
-	  
-	  
+	  public FontScaler scaleFont = new FontScaler(3,20,10);
 
 	//When creating a new visualizer, wee need to know the root node so we can run down the tree and draw it.
-	public TreePaneMaker(TrialNode root) {
+	public TreePaneMaker(TrialNode root, boolean slave) {
 		this.root = root;
-		TreePanel = new TreePane();
-
+		TreePanel = new TreePane(slave);
+		this.slave = slave;
         lastTime = System.currentTimeMillis(); //Grab the starting system time.
         
+	}
+	
+	  public void giveSlave(TreePaneMaker slaveMaker){
+  		  this.slaveMaker = slaveMaker;
+  		  TreePanel.giveSlave(slaveMaker);
+  	  }
+	
+	/** Change what the tree viewer thinks is the the root node **/
+	public void setRoot(TrialNode root){
+		this.root = root;
+		if(slave){ //If this is a slave viewer, then make an alternate tree for it.
+			root.MakeAltTree(true); //True means this is the new root of the alternate tree.
+		}
 	}
 	
 	/** Call this externally to force a full update of the tree. This will go through all nodes, collect lines, and tell the graphics to update **/
@@ -120,6 +134,11 @@ public class TreePaneMaker implements Schedulable{
 		 if (!Lines.equals(null)){
 			TreePanel.setTree(Lines);
 		 	TreePanel.repaint();
+		 }
+		 
+		 //If we have a slave pane, and we've changed its focus node, then let it change in this pane too.
+		 if(slaveMaker != null && slaveMaker.TreePanel.focusedNode != null && !slaveMaker.TreePanel.focusedNode.equals(TreePanel.focusedNode)){
+			 TreePanel.focusedNode = slaveMaker.TreePanel.focusedNode;
 		 }
 	}
 	
@@ -175,17 +194,26 @@ public class TreePaneMaker implements Schedulable{
 	  DecimalFormat df = new DecimalFormat("#.#");
 	  int countLastReport = 0; //Some info is only reported every handful of paint calls. Keep a counter.
 	  int gamespersec = 0;
-	  
+	  boolean slave = false;
   	  boolean clearBackground = true;
   	  int mouseX = 0;
   	  int mouseY = 0;
   	  TrialNode focusedNode; //Node that's being selected, clicked, etc.
+  	  TreePaneMaker slaveMaker; //A tree viewer can have a slave panel which can have sub-views of the tree.
   	  
-  	  public TreePane(){
+  	  public TreePane(boolean slave){
+  	  	  this.slave = slave;
+  	  	  if(!slave){
+	  	  	  
+  	  	  }
+  	  	  addKeyListener(this);
   	  	  addMouseListener(this);
   	  	  addMouseMotionListener(this);
   	  	  addMouseWheelListener(this);
-  	  	  addKeyListener(this);
+  	  }
+  	  
+  	  private void giveSlave(TreePaneMaker slaveMaker){
+  		  this.slaveMaker = slaveMaker;
   	  }
 
       public void paintComponent(Graphics g){
@@ -208,81 +236,128 @@ public class TreePaneMaker implements Schedulable{
     		  g.fillRect(0, 0, OptionsHolder.windowWidth,OptionsHolder.windowHeight);
     		  
     		  
-    		  if(focusedNode != null){
-    			  g.setColor(Color.RED);
-    			  g.fillRect((int)focusedNode.nodeLocation[0]-5, (int)focusedNode.nodeLocation[1]-5, 10,10);   			  	  
-    		  }
-    		  
-    		  
-	      	for (int i = 0; i<Lines.numLines; i++){
-	      		if(Lines.LineList[i][2] == 0 && Lines.LineList[i][3] == 0){ //If the x2 and y2 are 0, we've come to the end of actual lines.
-	      			break;
-	      		}
-	      		if(!Lines.ColorList[i].equals(Color.BLACK)){
-						g2.setColor(Lines.ColorList[i]);
-				}else{
-					g2.setColor(getDepthColor(Lines.NodeList[i][1].TreeDepth));
-				}
-	      		g2.drawLine(Lines.LineList[i][0], Lines.LineList[i][1], Lines.LineList[i][2], Lines.LineList[i][3]);
-	      		
-     			if (scoreDisplay && Lines.NodeList[i][1].DeadEnd){
-
-     				g2.setColor(getScoreColor(minDistScaling,maxDistScaling,-Lines.NodeList[i][1].rawScore));
-     				g2.setFont(scaleFont.InterpolateFont(minDistScaling,maxDistScaling,-Lines.NodeList[i][1].rawScore*OptionsHolder.sizeFactor));
-      				g2.drawString(df.format(Lines.NodeList[i][1].rawScore), (int)Lines.NodeList[i][1].nodeLocation[0], (int)Lines.NodeList[i][1].nodeLocation[1]);
-      				g2.setColor(Color.BLACK);
-      			}else if (valDisplay && Lines.NodeList[i][1].DeadEnd){
-     				if(Lines.NodeList[i][1].value != 0){
-     					
-     					g2.setColor(getScoreColor(minValScaling, maxValScaling, Lines.NodeList[i][1].value));
- 
-	     				g2.setFont(scaleFont.InterpolateFont(maxValScaling,minValScaling,Lines.NodeList[i][1].value*OptionsHolder.sizeFactor));
-	      				g2.drawString(df.format(Lines.NodeList[i][1].value), (int)Lines.NodeList[i][1].nodeLocation[0], (int)Lines.NodeList[i][1].nodeLocation[1]);
+    		  if(!slave){
+	    		  if(focusedNode != null){
+	    			  g.setColor(Color.RED);
+	    			  g.fillRect((int)focusedNode.nodeLocation[0]-5, (int)focusedNode.nodeLocation[1]-5, 10,10);   			  	  
+	    		  }
+	    		  
+	    		  
+		      	for (int i = 0; i<Lines.numLines; i++){
+		      		if(Lines.LineList[i][2] == 0 && Lines.LineList[i][3] == 0){ //If the x2 and y2 are 0, we've come to the end of actual lines.
+		      			break;
+		      		}
+		      		if(!Lines.ColorList[i].equals(Color.BLACK)){
+							g2.setColor(Lines.ColorList[i]);
+					}else{
+						g2.setColor(getDepthColor(Lines.NodeList[i][1].TreeDepth));
+					}
+		      		g2.drawLine(Lines.LineList[i][0], Lines.LineList[i][1], Lines.LineList[i][2], Lines.LineList[i][3]);
+		      		
+	     			if (scoreDisplay && Lines.NodeList[i][1].DeadEnd){
+	
+	     				g2.setColor(getScoreColor(minDistScaling,maxDistScaling,-Lines.NodeList[i][1].rawScore));
+	     				g2.setFont(scaleFont.InterpolateFont(minDistScaling,maxDistScaling,-Lines.NodeList[i][1].rawScore*OptionsHolder.sizeFactor));
+	      				g2.drawString(df.format(Lines.NodeList[i][1].rawScore), (int)Lines.NodeList[i][1].nodeLocation[0], (int)Lines.NodeList[i][1].nodeLocation[1]);
 	      				g2.setColor(Color.BLACK);
-     				}
-      				
-      			}
-	      		
-	      		if(Lines.LabelOn[i]){ //Draw the label if it's turned on. NOTE: Change nodelist index back to zero for it to only display one action instead of all child node ones. Accidental change that turned out nicely.
-	      			g.setColor(Color.BLACK);
-	      			g.setFont(scaleFont.InterpolateFont(0, 4, OptionsHolder.sizeFactor));
-	      			g.drawString(""+Lines.NodeList[i][1].ControlAction, (int)Lines.NodeList[i][1].nodeLocation[0], (int)Lines.NodeList[i][1].nodeLocation[1]);
-	      		}
-	      	}
+	      			}else if (valDisplay && Lines.NodeList[i][1].DeadEnd){
+	     				if(Lines.NodeList[i][1].value != 0){
+	     					
+	     					g2.setColor(getScoreColor(minValScaling, maxValScaling, Lines.NodeList[i][1].value));
+	 
+		     				g2.setFont(scaleFont.InterpolateFont(maxValScaling,minValScaling,Lines.NodeList[i][1].value*OptionsHolder.sizeFactor));
+		      				g2.drawString(df.format(Lines.NodeList[i][1].value), (int)Lines.NodeList[i][1].nodeLocation[0], (int)Lines.NodeList[i][1].nodeLocation[1]);
+		      				g2.setColor(Color.BLACK);
+	     				}
+	      				
+	      			}
+		      		
+		      		if(Lines.LabelOn[i]){ //Draw the label if it's turned on. NOTE: Change nodelist index back to zero for it to only display one action instead of all child node ones. Accidental change that turned out nicely.
+		      			g.setColor(Color.BLACK);
+		      			g.setFont(scaleFont.InterpolateFont(0, 4, OptionsHolder.sizeFactor));
+		      			g.drawString(""+Lines.NodeList[i][1].ControlAction, (int)Lines.NodeList[i][1].nodeLocation[0], (int)Lines.NodeList[i][1].nodeLocation[1]);
+		      		}
+		      	}
+    		  }else{
+	    		  if(focusedNode != null){
+	    			  g.setColor(Color.RED);
+	    			  g.fillRect((int)focusedNode.nodeLocation2[0]-5, (int)focusedNode.nodeLocation2[1]-5, 10,10);   			  	  
+	    		  }
+	    		  
+	    		  
+		      	for (int i = 0; i<Lines.numLines; i++){
+		      		if(Lines.LineList2[i][2] == 0 && Lines.LineList2[i][3] == 0){ //If the x2 and y2 are 0, we've come to the end of actual lines.
+		      			break;
+		      		}
+		      		if(!Lines.ColorList[i].equals(Color.BLACK)){
+							g2.setColor(Lines.ColorList[i]);
+					}else{
+						g2.setColor(getDepthColor(Lines.NodeList[i][1].TreeDepth));
+					}
+		      		g2.drawLine(Lines.LineList2[i][0], Lines.LineList2[i][1], Lines.LineList2[i][2], Lines.LineList2[i][3]);
+		      		
+	     			if (scoreDisplay && Lines.NodeList[i][1].DeadEnd){
+	
+	     				g2.setColor(getScoreColor(minDistScaling,maxDistScaling,-Lines.NodeList[i][1].rawScore));
+	     				g2.setFont(scaleFont.InterpolateFont(minDistScaling,maxDistScaling,-Lines.NodeList[i][1].rawScore*OptionsHolder.sizeFactor));
+	      				g2.drawString(df.format(Lines.NodeList[i][1].rawScore), (int)Lines.NodeList[i][1].nodeLocation2[0], (int)Lines.NodeList[i][1].nodeLocation2[1]);
+	      				g2.setColor(Color.BLACK);
+	      			}else if (valDisplay && Lines.NodeList[i][1].DeadEnd){
+	     				if(Lines.NodeList[i][1].value != 0){
+	     					
+	     					g2.setColor(getScoreColor(minValScaling, maxValScaling, Lines.NodeList[i][1].value));
+	 
+		     				g2.setFont(scaleFont.InterpolateFont(maxValScaling,minValScaling,Lines.NodeList[i][1].value*OptionsHolder.sizeFactor));
+		      				g2.drawString(df.format(Lines.NodeList[i][1].value), (int)Lines.NodeList[i][1].nodeLocation2[0], (int)Lines.NodeList[i][1].nodeLocation2[1]);
+		      				g2.setColor(Color.BLACK);
+	     				}
+	      				
+	      			}
+		      		
+		      		if(Lines.LabelOn[i] && i<Lines.LabelOn.length-1){ //Draw the label if it's turned on. NOTE: Change nodelist index back to zero for it to only display one action instead of all child node ones. Accidental change that turned out nicely.
+		      			g.setColor(Color.BLACK);
+		      			g.setFont(scaleFont.InterpolateFont(0, 4, OptionsHolder.sizeFactor));
+		      			g.drawString(""+Lines.NodeList[i][1].ControlAction, (int)Lines.NodeList[i][1].nodeLocation2[0], (int)Lines.NodeList[i][1].nodeLocation2[1]);
+		      		}
+		      	}
+    		  }
 	      	
 
 	  		  //Write the instructions up too:
-	  		  g.setColor(Color.BLACK);
-	  		  g.setFont(smallFont);
-	  		  for (int i = 0; i<instructions.length; i++){
-	  			g.drawString(instructions[instructions.length-1-i], 10, OptionsHolder.windowHeight-i*25-50);
-	  			  
-	  		  }
-	      	
+	      	if( !slave ){
+		  		  g.setColor(Color.BLACK);
+		  		  g.setFont(smallFont);
+		  		  for (int i = 0; i<instructions.length; i++){
+		  			g.drawString(instructions[instructions.length-1-i], 10, OptionsHolder.windowHeight-i*25-50);
+		  			  
+		  		  }
+	      	} 	
     	  }  		  
     	  }
   		  //Write how many games have been played:
     	  //note, still displays even when graphics are basically paused.
-  		  g.setColor(Color.WHITE);
-  		g.setColor(new Color(1f,1f,1f,1f));
-  		  g.fillRect(0,0,450,100);
-  		  g.setColor(Color.BLACK);
-  		  g.setFont(bigFont);
-  		  g.drawString(OptionsHolder.gamesPlayed + " Games played", 20, 50);
-  		  
-  		  //Draw games/s
-  		  if(countLastReport>reportEvery){
-  			  countLastReport = 0; //Reset the counter.
-	  		  currTime = System.currentTimeMillis();
-  			  gamespersec = (int)((OptionsHolder.gamesPlayed-lastGameNum)*1000./(currTime-lastTime));
-	  		  g.drawString(gamespersec + "  games/s", 30, 90);
-	  		  lastGameNum = OptionsHolder.gamesPlayed;
-	  		  lastTime = currTime;
-  		  }else{
-  			  g.drawString(gamespersec + "  games/s", 30, 90);
-  			  countLastReport++;
-  		  }
-       }
+    	  if(!slave){ //for a slave panel, we don't want this extra info.
+	  		  g.setColor(Color.WHITE);
+	  		  g.setColor(new Color(1f,1f,1f,1f));
+	  		  g.fillRect(0,0,450,100);
+	  		  g.setColor(Color.BLACK);
+	  		  g.setFont(bigFont);
+	  		  g.drawString(OptionsHolder.gamesPlayed + " Games played", 20, 50);
+	  		  
+	  		  //Draw games/s
+	  		  if(countLastReport>reportEvery){
+	  			  countLastReport = 0; //Reset the counter.
+		  		  currTime = System.currentTimeMillis();
+	  			  gamespersec = (int)((OptionsHolder.gamesPlayed-lastGameNum)*1000./(currTime-lastTime));
+		  		  g.drawString(gamespersec + "  games/s", 30, 90);
+		  		  lastGameNum = OptionsHolder.gamesPlayed;
+		  		  lastTime = currTime;
+	  		  }else{
+	  			  g.drawString(gamespersec + "  games/s", 30, 90);
+	  			  countLastReport++;
+	  		  }
+	       }
+      }
       /** Set the LineHolder to pay attention to **/
       public void setTree(LineHolder Lines){
       	this.Lines = Lines;
@@ -340,16 +415,31 @@ public class TreePaneMaker implements Schedulable{
 	@Override
 	public void mouseClicked(MouseEvent arg0) {	
 		if (arg0.isAltDown()){ //alt click enables a label on this node
-			focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
+			if(slave){// If slave, search among the alternate node locations in the subview panel.
+				focusedNode = Lines.GetNearestNodeAlt(arg0.getX(), arg0.getY());
+			}else{
+				focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
+			}
 			focusedNode.LabelOn = true;
 		}else if (arg0.isControlDown()){ //Control will hide this node and all its children.
-			focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
+			if(slave){// If slave, search among the alternate node locations in the subview panel.
+				focusedNode = Lines.GetNearestNodeAlt(arg0.getX(), arg0.getY());
+			}else{
+				focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
+			}
 			if(focusedNode !=null && focusedNode.TreeDepth > 1){ //Keeps stupid me from hiding everything in one click.
 				focusedNode.hiddenNode = true;
 				focusedNode.ParentNode.RemoveChild(focusedNode); //Try also just killing it from the tree search too.
 			}
 		}else if (arg0.isMetaDown()){
-			focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
+			if(slave){// If slave, search among the alternate node locations in the subview panel.
+				focusedNode = Lines.GetNearestNodeAlt(arg0.getX(), arg0.getY());
+			}else{
+				focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
+				if(slaveMaker != null){ //If we have a slave panel, then change its focus to our focus too
+					slaveMaker.TreePanel.focusedNode = focusedNode;
+				}
+			}
 			if (SnapshotPane != null){
 				SnapshotPane.setNode(focusedNode);
 			}
@@ -376,7 +466,11 @@ public class TreePaneMaker implements Schedulable{
 		mouseY = arg0.getY();
 		
 	if (arg0.getButton() == MouseEvent.BUTTON3){ //Right click moves nodes.
-		focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
+		if(slave){// If slave, search among the alternate node locations in the subview panel.
+			focusedNode = Lines.GetNearestNodeAlt(arg0.getX(), arg0.getY());
+		}else{
+			focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
+		}
 	}
 		
 	}
@@ -390,15 +484,28 @@ public class TreePaneMaker implements Schedulable{
 	public void mouseDragged(MouseEvent arg0){
 		
 		if (arg0.getButton() == MouseEvent.BUTTON1){ //Left click drags the whole thing.
-			root.ShiftNodes(arg0.getX()-mouseX, arg0.getY()-mouseY);
+			if(slave){
+				root.ShiftNodesAlt(arg0.getX()-mouseX, arg0.getY()-mouseY);
+
+			}else{
+				root.ShiftNodes(arg0.getX()-mouseX, arg0.getY()-mouseY);
+			}
 		}else if (arg0.getButton() == MouseEvent.BUTTON3){ //Right click moves nodes.
 			//Calculate the angle between the click and the parent of the click node.
-			
-			double clickAngle = -Math.atan2((arg0.getX()-focusedNode.ParentNode.nodeLocation[0]),(arg0.getY()-focusedNode.ParentNode.nodeLocation[1]))+Math.PI/2.;
-			clickAngle -= focusedNode.nodeAngle; //Subtract out the current angle.
-			
-			focusedNode.RotateBranch(clickAngle);
-			
+
+			if(slave){
+				
+				double clickAngle = -Math.atan2((arg0.getX()-focusedNode.ParentNode.nodeLocation2[0]),(arg0.getY()-focusedNode.ParentNode.nodeLocation2[1]))+Math.PI/2.;
+				clickAngle -= focusedNode.nodeAngle2; //Subtract out the current angle.
+				
+				focusedNode.RotateBranchAlt(clickAngle);
+			}else{
+				
+				double clickAngle = -Math.atan2((arg0.getX()-focusedNode.ParentNode.nodeLocation[0]),(arg0.getY()-focusedNode.ParentNode.nodeLocation[1]))+Math.PI/2.;
+				clickAngle -= focusedNode.nodeAngle; //Subtract out the current angle.
+				
+				focusedNode.RotateBranch(clickAngle);
+			}	
 		}
 			mouseX = arg0.getX();
 			mouseY = arg0.getY();
@@ -416,16 +523,33 @@ public class TreePaneMaker implements Schedulable{
 	
 	if (arg0.getWheelRotation()<0){ //Negative mouse direction -> zoom in.
 		if(arg0.isAltDown()){
-			focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
-			focusedNode.SpaceBranch(0.1);
+			if(slave){// If slave, search among the alternate node locations in the subview panel.
+				focusedNode = Lines.GetNearestNodeAlt(arg0.getX(), arg0.getY());
+			}else{
+				focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
+			}
+			if(slave){
+				focusedNode.SpaceBranchAlt(0.1);
+			}else{
+				focusedNode.SpaceBranch(0.1);
+			}
+
 			
 		}else{
 			SizeChanger*=1.1;
 		}
 	}else{
 		if(arg0.isAltDown()){
-			focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
-			focusedNode.SpaceBranch(-0.1);
+			if(slave){// If slave, search among the alternate node locations in the subview panel.
+				focusedNode = Lines.GetNearestNodeAlt(arg0.getX(), arg0.getY());
+			}else{
+				focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
+			}
+			if(slave){
+				focusedNode.SpaceBranchAlt(-0.1);
+			}else{
+				focusedNode.SpaceBranch(-0.1);
+			}
 			
 		}else{
 			SizeChanger*=0.9;
@@ -440,8 +564,13 @@ public class TreePaneMaker implements Schedulable{
 	
 	public void DoResize(){
 		if(SizeChanger != 1){
-			root.ZoomNodes(SizeChanger);
-			OptionsHolder.ChangeSizeFactor(SizeChanger);
+			if(slave){
+				root.ZoomNodesAlt(SizeChanger);
+				OptionsHolder.ChangeSizeFactorAlt(SizeChanger);
+			}else{
+				root.ZoomNodes(SizeChanger);
+				OptionsHolder.ChangeSizeFactor(SizeChanger);
+			}
 			SizeChanger = 1;
 		}
 	}
@@ -473,6 +602,9 @@ public class TreePaneMaker implements Schedulable{
 				focusedNode = focusedNode.GetChild(0);
 			}else if(depth == -1 && focusedNode.TreeDepth>1){ //Go up the tree if this is not root.
 				focusedNode = focusedNode.ParentNode;
+			}
+			if(slaveMaker != null){ //If we have a slave panel, then change its focus to our focus too
+				slaveMaker.TreePanel.focusedNode = focusedNode;
 			}
 			SnapshotPane.setNode(focusedNode);
 			SnapshotPane.update();
@@ -573,13 +705,23 @@ public class TreePaneMaker implements Schedulable{
 	public void keyTyped(KeyEvent arg0) {
 		switch(arg0.getKeyChar()){
 			case 't': // explore specific branch by setting an override node.
-				if(focusedNode != null){
+				//Uncolor the previous subtree, if it exists.
+				if(OverrideNode != null){
+					OverrideNode.ColorChildren(Color.BLACK);
+				}
+				
+				if(focusedNode != null && !focusedNode.FullyExplored){
 					OverrideNode = focusedNode;
 					Override = !Override;
 					if(Override){
 						OverrideNode.ColorChildren(Color.ORANGE);
 					}else{
 						OverrideNode.ColorChildren(Color.BLACK);
+					}
+					
+					if(slaveMaker != null){
+						slaveMaker.setRoot(focusedNode);
+						
 					}
 				}
 				break;
@@ -613,8 +755,9 @@ public class TreePaneMaker implements Schedulable{
 		if(!OptionsHolder.delayTreeMoves){
 			TreePanel.DoResize();
 		}
-		update();
-		
+		if(activeTab){
+			update();
+		}
 	}
 
 	@Override
@@ -626,6 +769,18 @@ public class TreePaneMaker implements Schedulable{
 	@Override
 	public void Disable() {
 		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void ActivateTab() {
+		activeTab = true;
+		
+	}
+
+	@Override
+	public void DeactivateTab() {
+		activeTab = false;
 		
 	}
 }

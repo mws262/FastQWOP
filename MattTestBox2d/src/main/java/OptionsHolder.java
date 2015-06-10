@@ -86,8 +86,11 @@ public class OptionsHolder {
 		{-2,-1,0,1,2},
 		{0,1},
 		{-2,-1,0,1,2}
-		
-		
+//		
+//		{0},
+//		{0},
+//		{0},
+//		{0,1}
 	
 	};
 	
@@ -116,14 +119,21 @@ public class OptionsHolder {
 	  
 	  /** Length of a tree edge **/
 	  public static float edgeLength = 100;
+	  public static float edgeLengthAlt = 100; //Same as above but for the subview pane.
 	  
 	  /** General size factor **/
 	  public static float sizeFactor = 1f;
-
+	  public static float sizeFactorAlt = 1f;
+	  
 	  /** When tree visualization is zoomed in, must change the reference edge length for new branches **/
 	  public static void ChangeSizeFactor(float increaseFactor){
 		  sizeFactor *= increaseFactor;
 		  edgeLength *= increaseFactor;
+		  
+	  }
+	  public static void ChangeSizeFactorAlt(float increaseFactor){
+		  sizeFactorAlt *= increaseFactor;
+		  edgeLengthAlt *= increaseFactor;
 		  
 	  }
 	
