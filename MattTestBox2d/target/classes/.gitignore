@@ -1,1 +1,5 @@
 /META-INF/
+/QWOPInterface$FailMode.class
+/StateHolder$FailMode.class
+/GoodNodes.class
+/NodeScorer.class

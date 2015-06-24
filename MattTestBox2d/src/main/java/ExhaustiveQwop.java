@@ -1,6 +1,7 @@
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Random;
 //Note: periodic solutions with noise.
 public class ExhaustiveQwop {
@@ -28,6 +29,9 @@ public class ExhaustiveQwop {
 	
 	public static void main(String args[]) throws SecurityException, IllegalArgumentException, NoSuchFieldException, IllegalAccessException{
 		
+		if(OptionsHolder.limitDepth && OptionsHolder.stochasticDepth){
+			throw new RuntimeException("Can't both limit depth and do stochastic depth. Change this in the options holder");
+		}
 		boolean finished = false;
 		
 		//Start the QWOP handler.
@@ -39,12 +43,13 @@ public class ExhaustiveQwop {
 		TrialNode NextNode;
 		float currentRecord = 0;
 		int maxDepth = 0;
+		int currentRootDepth = 0;
 		
-		int searchspace = 1;
+		long searchspace = 1;
 		for (int i = 0; i<depth; i++){
 			searchspace *= TrialNode.ActionList[i%(TrialNode.ActionList.length)].length;
 		}
-		System.out.println("This will take a max of " + searchspace + "  evaluations assuming no failures.");
+//		System.out.println("This will take a max of " + searchspace + "  evaluations assuming no failures.");
 
 		int verboseIncrement = OptionsHolder.verboseIncrement;
 		
@@ -52,11 +57,12 @@ public class ExhaustiveQwop {
 
 		int counter = 0;
 		boolean failed = false;
+		boolean reachedEndLim = false;
 		
 		QWOPHandler.NewGame(OptionsHolder.visOn); //Get a new game going.
 //		RootNode.CaptureState(QWOPHandler);
 		int[] oldActions = {};
-		int[] bufferNew = new int[500000]; //plenty big for storing new values since last fall.
+		int[] bufferNew = new int[5000]; //plenty big for storing new values since last fall.
 		Arrays.fill(bufferNew, -1);
 		int newGoodActions = 0;
 		
@@ -98,27 +104,70 @@ public class ExhaustiveQwop {
 		SpecificViewer.runPane = VisRoot.RunMaker;
 		
 		
+		//Entity which holds new nodes at the end of paths for ranking purposes. Mainly used when we're doing the weird MPC-ish thing.
+		GoodNodes nodeRankHolder = new GoodNodes();
+		TrialNode currentRoot = RootNode;
+		ArrayList<NodeScorer> potentialPaths = new ArrayList<NodeScorer>();
+		int sampleCount = 0; //used for counting stochastic depth search version.
 		while (!finished){
 
+			
+			//NOTE TO SELF -- NOW ADD SOMETHING WHICH SHIFts US DOWN THE TREE ONE SPOT AND MAKES THAT THE ROOT.
 			/* If last time we failed, figure out the last good point we want to explore from and come up with the sequence of actions to get there */
 
-			//Also, we don't need to reconstruct the path if we're choosing a new action right at the starting decision.
-			//THIS IS FOR MARCHING UP THE TREE WHEN RESETTING
-			if (failed && (CurrentNode.TreeDepth != 0)){ //If we failed earlier, we need to go back and do all the original actions before exploring the new path.
-//				oldActions = new int[CurrentNode.TreeDepth];
-//				oldActions[oldActions.length-1] = CurrentNode.EchoControl(); //Last cached action will be the current node's action.
-//				
-//				NextNode = CurrentNode.ParentNode;
-//				for (int i = 0; i<oldActions.length-1; i++){ //Now go back through all the parent nodes to find their actions up the tree
-//					oldActions[oldActions.length-2-i] = NextNode.EchoControl();
-//					NextNode = NextNode.ParentNode;
-//				}
-			
+			/**
+			 * Decide a path to go down and test an action onward
+			 */
+			if (currentRoot.TempFullyExplored && !currentRoot.FullyExplored && OptionsHolder.limitDepth){ //We've temp fully explored this branch. We go in one depth layer and do again for the best ones if we're doing this kind of exploration.
+				System.out.println("Finished tree with root depth of " + currentRoot.TreeDepth + ". Going down 1.");
+				RootNode.RemoveTempExploredFlag(); // Get rid of all the temporarily explored flags here and all branches down.
+				currentRootDepth++; // Increase our fake root depth for purposes of bookkeeping
+				//Now find the new sorta root to go to.
+				
+				NodeScorer[] topfew = nodeRankHolder.getTopX(100);
+
+				if (currentRoot.NumChildren() == 1){
+					currentRoot = currentRoot.GetChild(0);
+				}else{
+					for (int i = 0; i<topfew.length; i++){
+						currentRoot = topfew[i].getUpstream(currentRootDepth);
+						if(!currentRoot.FullyExplored){
+							break;
+						}
+					}
+				}
+				if(currentRoot.FullyExplored){
+					while(currentRoot.FullyExplored && !currentRoot.equals(RootNode)){
+						currentRoot = currentRoot.ParentNode;
+						System.out.println("backing up");
+					}
+					currentRootDepth = currentRoot.TreeDepth;
+				}
+				
+				CurrentNode = currentRoot;
+				VisRoot.TreeMaker.TreePanel.setOverride(currentRoot);
+				
+				nodeRankHolder.clearAll();
+			}else if(currentRoot.FullyExplored && OptionsHolder.limitDepth){
+				RootNode.RemoveTempExploredFlag(); // Get rid of all the temporarily explored flags here and all branches down.
+
+				while(currentRoot.FullyExplored && !currentRoot.equals(RootNode)){
+					currentRoot = currentRoot.ParentNode;
+					System.out.println("backing up");
+				}
+				currentRootDepth = currentRoot.TreeDepth;
+				nodeRankHolder.clearAll();
+				CurrentNode = currentRoot;
+				VisRoot.TreeMaker.TreePanel.setOverride(currentRoot);
+			}
+
+			/**
+			 * Handle getting to the start line
+			 * 
+			 */
+			// If we want to start at a non-root node, then we need to run the actions to get there.
+			if ((failed || reachedEndLim) && (CurrentNode.TreeDepth != 0)){ //If we failed earlier, we need to go back and do all the original actions before exploring the new path.
 				oldActions = CurrentNode.getSequence();
-//				for (int i = 0; i < oldActions.length; i++){
-//					System.out.print(oldActions[i] + ", ");
-//				}
-//				System.out.println();
 				//If we failed earlier, we'll run all those old actions we figured out above.
 				QWOPHandler.NewGame(OptionsHolder.visOn); //Start a new game.
 				try {
@@ -127,17 +176,20 @@ public class ExhaustiveQwop {
 					e.printStackTrace();
 				}
 				failed = false;
-			}else if(failed){  //THIS IS FOR MARCHING DOWN THE TREE WHEN RESETTING>
+			}else if(failed || reachedEndLim){ //we start at root and we're already where we want to start.
 				QWOPHandler.NewGame(OptionsHolder.visOn); //Start a new game.
 				failed = false;
+				reachedEndLim = false;
 			}
-			
 			
 			//When marching down, if we find that the root node is fully explored, we exit.
-			if (CurrentNode.FullyExplored){
+			if (RootNode.FullyExplored){
 				break;
 			}
-			/* Sample a new. unexplored node. */
+			
+			
+
+			
 			NextNode = CurrentNode.SampleNew();
 			//Now execute it.
 			try {
@@ -147,7 +199,7 @@ public class ExhaustiveQwop {
 				if(OptionsHolder.KeepStates){
 					NextNode.CaptureState(QWOPHandler);
 				}
-				//NEW NEW: Once we get past the intro 2 steps, we want to back up the state because we're looking for a set of 4 parameters which results in something reasonably close to periodic.
+				//Once we get past the prefix steps, we want to back up the state because we're looking for a set of [periodicset] parameters which results in something reasonably close to periodic.
 				if(NextNode.TreeDepth == OptionsHolder.prefixLength){
 					BeginningState.CaptureState();
 					
@@ -161,6 +213,7 @@ public class ExhaustiveQwop {
 					ValHolder.add(NewError);
 					Every8.Iterate();
 
+					// announce good things.
 					if (NewError < LeastError){
 						
 						if (verbose){
@@ -178,7 +231,6 @@ public class ExhaustiveQwop {
 						}
 						LeastError = NewError;
 					}
-					
 				}
 				
 				if(-cost>currentRecord){
@@ -204,26 +256,42 @@ public class ExhaustiveQwop {
 			}
 			
 		
-			/* Check Failure */
-//			failed = NextNode.TreeDepth==depth; //We auto "fail" if we try to expand the tree beyond the specified depth. This is probably inefficient, since we knowthis failure without going through all the steps.
+			/**
+			 * Check for failure.
+			 */
 			// We also fail based on the dude's state:
-			failed = failed || QWOPHandler.CheckFailure();
+			failed = QWOPHandler.CheckFailure();// || (OptionsHolder.limitDepth && NextNode.TreeDepth == OptionsHolder.treeDepth);
+			reachedEndLim = (OptionsHolder.limitDepth && (NextNode.TreeDepth - currentRootDepth) == OptionsHolder.treeDepth);
 			/* Handle Failure or move down the tree if successful */
 			
 
-			if (failed){ //If we fall, then remove this new node and check to see if we've completed any trees.
-//				if(CurrentNode.TreeDepth>11){ System.out.println("fail");System.out.println();}
-				CurrentNode.RemoveChild(NextNode);
+			if (failed || reachedEndLim){ //If we fall, then remove this new node and check to see if we've completed any trees.
+//				CurrentNode.RemoveChild(NextNode);
+				
+				//Remove the dead node, and propagate back to see if we've fully explored any nodes.
+				boolean ExploredFlag = false;
+				if(failed){
+					ExploredFlag = CurrentNode.RemoveChild(NextNode);
+				}else{ //If it isn't a failure, we're just taking it out of commission temporarily due to a depth limit.
+					NextNode.TempRemove();
+					ExploredFlag = (CurrentNode.FullyExplored || CurrentNode.TempFullyExplored);
+				}
+				
+				//If we are limiting the depth, it would be nice to keep a sortable holder for scores and such.
+				if (OptionsHolder.limitDepth || OptionsHolder.stochasticDepth){
+					nodeRankHolder.passNew(NextNode,currentRootDepth+1); //give this node AND the depth we would go back to if we picked this node. This lets us check if that one is fully explored or not.
+				}
+				
+				
 				DistHolder.add(-CurrentNode.rawScore);
-				CurrentNode.PropagateHighScore(CurrentNode.rawScore);
-				if (CurrentNode.TreeDepth>maxDepth) {
+				CurrentNode.PropagateHighScore(CurrentNode.rawScore); //Make the score run back to the end of the periodic part so we know the max discovered score from this node.
+				if (CurrentNode.TreeDepth>maxDepth) { //Keep track of the deepest we've gone so far.
 					maxDepth = CurrentNode.TreeDepth; //Update the tree depth if we manage to go deeper.
 					VisRoot.TreeMaker.maxDepth = maxDepth;
 				}
 				//Plot the new tree nodes if this setting is on:
 				if(OptionsHolder.treeVisOn){
-//					visnodes.ScaleCosts(CostHolder); //Give the visTree all the end costs for scaling coloring.
-					EveryEnd.Iterate();
+					EveryEnd.Iterate(); //This iterates the scheduler which is on the schedule of every branch ending.
 				}
 				
 				//For diagnostics, keep track of how many potential path have been eliminated by failures.
@@ -238,24 +306,148 @@ public class ExhaustiveQwop {
 				Arrays.fill(bufferNew, -1); //We failed, so clear out the buffer of new good actions.
 				newGoodActions = 0; //no new actions that are good anymore.
 				
-				//Remove the dead node, and propagate back to see if we've fully explored any nodes.
-				boolean ExploredFlag = CurrentNode.RemoveChild(NextNode);
+				/*
+				 * Stochastic depth stuff
+				 */
+				if(OptionsHolder.stochasticDepth){
+					sampleCount++;
+					TrialNode oldroot = currentRoot;
+					TrialNode selectedEnd;
+					int sampleLimit = OptionsHolder.sampleCount-(currentRoot.TreeDepth*4);
+					if (sampleLimit<10) sampleLimit = 10; //Ensure that we always sample at least 10 before moving on.
+					if(sampleCount>sampleLimit || currentRoot.FullyExplored){
+						currentRootDepth = (currentRootDepth+OptionsHolder.forwardJump);
+						sampleCount = 0;
+						ArrayList<NodeScorer> topfew = nodeRankHolder.getFilteredTopX(currentRoot,20);
+					
+						
+						if (currentRoot.NumChildren() == 1){
+							currentRoot = currentRoot.GetChild(0);
+						}else{
+							
+							NodeScorer sh = nodeRankHolder.getFromNode(oldroot);
+							if(sh != null){
+								sh.getNode().colorOverride = Color.BLACK;
+								potentialPaths.remove(sh);
+							}
+							
+							int goodptcount = 0;
+							for (int i = 0; i<topfew.size(); i++){
+								currentRoot = topfew.get(i).getUpstream(currentRootDepth);
+								if(!currentRoot.FullyExplored && !potentialPaths.contains(topfew.get(i))){ //Make sure that the upstream root is not fully explored and that the end node isn't already in the list.
+
+									potentialPaths.add(topfew.get(i));
+									topfew.get(i).getNode().colorOverride = Color.green;
+									goodptcount++;
+									if(goodptcount >OptionsHolder.multiPointCount){
+										break;
+									}
+								}
+							}
+							//Trim down the potentialPaths here
+							if(OptionsHolder.trimSimilar){
+							for (int j = 0; j<potentialPaths.size()-1; j++){
+								for (int k = j+1; k<potentialPaths.size(); k++){
+									
+									int[] set1 = potentialPaths.get(j).getNode().getSequence();
+									int[] set2 = potentialPaths.get(k).getNode().getSequence();
+									int matchCount = 0;
+									for(int m = 0; m<set1.length; m++){
+										if (set1[m] != set2[m]){
+											break;
+										}else{
+											matchCount++;
+										}
+									}
+									
+									//If the two match to 50% of the longer string, then eliminate one.
+									if(matchCount > 0.5*(set1.length>set2.length ? set1.length : set2.length)){
+										System.out.println("eliminated 1");
+										if(potentialPaths.get(j).totalScore()>potentialPaths.get(k).totalScore()){
+											potentialPaths.get(k).getNode().colorOverride = Color.BLACK;
+											potentialPaths.remove(k);
+										}else{
+											potentialPaths.get(j).getNode().colorOverride = Color.BLACK;
+											potentialPaths.remove(j);
+										}
+									}
+								}
+							}
+							}
+
+							NodeScorer end = potentialPaths.get(0);
+							if(!OptionsHolder.multiSelection){
+								Collections.sort(potentialPaths);
+								end = potentialPaths.get(0);
+							}else if(OptionsHolder.weightedSelection){
+								//Find the total score of all saved paths so we can do a random, weighted selection.
+								double totalScore = 0;
+								double offset = 0;
+								for (NodeScorer p: potentialPaths){
+									totalScore += p.totalScore();
+									if(p.totalScore()<offset){ //If we have values below 0, we want to go back and add an offset to all of them.
+										offset = p.totalScore();
+									}
+								}
+								totalScore -= offset*(double)potentialPaths.size(); // Add the offset for each of the potential paths.
+								
+								
+								double selection = rand.nextDouble()*totalScore;
+								double cumulativeScore = 0;
+								for (NodeScorer p: potentialPaths){
+									cumulativeScore += p.totalScore()-offset;
+									if(cumulativeScore>selection){
+										end = p;
+										break;
+									}
+								}
+							}else{
+								//equal random selection
+								end = potentialPaths.get(randInt(0,potentialPaths.size()-1));
+							}
+
+							
+							selectedEnd = end.getNode();
+							currentRootDepth = selectedEnd.TreeDepth - OptionsHolder.stochasticHorizon;
+							if(currentRootDepth < 2) currentRootDepth = 0;
+							//System.out.println(currentRootDepth);
+							currentRoot = end.getUpstream(currentRootDepth);
+							if(selectedEnd.TreeDepth-currentRoot.TreeDepth<OptionsHolder.stochasticHorizon){
+								System.out.println("Too close to the end. Using same as old root node.");
+								currentRoot = oldroot;
+							}
+
+						}
+
+						if(currentRoot.FullyExplored){
+							while(currentRoot.FullyExplored && !currentRoot.equals(RootNode)){
+								for (int n = 0; n<OptionsHolder.backwardJump; n++){
+									currentRoot = currentRoot.ParentNode;
+								}	
+							}
+							currentRootDepth = currentRoot.TreeDepth;
+						}
+						VisRoot.TreeMaker.TreePanel.setOverride(currentRoot);
+						CurrentNode = currentRoot;
+					}
+
+				}
+
 				
-				//Now we need to decide where to go back to.
+				/**
+				 * Pick a node to return to after going to the end of a branch (i.e. one single run).
+				 * 
+				 */
+				
 				if(VisRoot.TreeMaker.Override){ //This lets us explore a specific branch by overriding which node the process resets to.
-//					if(!VisRoot.TreeMaker.OverrideNode.FullyExplored){
-						CurrentNode = VisRoot.TreeMaker.OverrideNode;
+
 						VisRoot.TreeMaker.OverrideNode.ColorChildren(Color.ORANGE);
 						//Once we've exhausted our options, set back to root node and turn off this search option in the treemaker.
+						CurrentNode = currentRoot;
 						if(CurrentNode.FullyExplored || CurrentNode.DeadEnd){
-	//						VisRoot.TreeMaker.OverrideNode.ColorChildren(Color.darkGray);//No special color once we've finished.
 							VisRoot.TreeMaker.OverrideNode.ColorChildren(Color.BLACK);
-							CurrentNode = RootNode;
-							VisRoot.TreeMaker.Override = false;
-							System.out.println("Done with subtree.");
-							
+						
 						}
-//					}
 				}else if(OptionsHolder.marchUp){
 					//This method marches BACK UP the tree until we find an unexplored node to try.
 					while (ExploredFlag){ //Keep marching up the layers until we find one that isn't fully explored
@@ -268,7 +460,7 @@ public class ExhaustiveQwop {
 							break;
 						}
 						CurrentNode = CurrentNode.ParentNode;
-						ExploredFlag = CurrentNode.FullyExplored;
+						ExploredFlag = (CurrentNode.FullyExplored || CurrentNode.TempFullyExplored);
 		
 					}
 				}else{
@@ -277,21 +469,24 @@ public class ExhaustiveQwop {
 				}
 				
 			}else{
+				/**
+				 * We didn't fail this action, buffer good actions and move down the tree further.
+				 */
 				//Record this good new action
 				bufferNew[newGoodActions] = NextNode.EchoControl();
 				newGoodActions++;
 				CurrentNode = NextNode; //If there's more to explore, then keep going down the tree.
 			}	
-			if (failed && verbose && (counter>=verboseIncrement && counter%verboseIncrement == 0)){ //Spit out progress if verbose.
+			if ((failed || reachedEndLim) && verbose && (counter>=verboseIncrement && counter%verboseIncrement == 0)){ //Spit out progress if verbose.
 				System.out.println("We are " + counter + " runs through the search. Worst case: " + (float)counter/(float)searchspace*100f + "% complete.");
 				
 			}
-			if (failed){
+			if (failed || reachedEndLim){
 				counter++; //Right now, the counter is just recording complete runs (ie until the failure occurs.
 				OptionsHolder.gamesPlayed = counter;
 			}
 		}
-		//Final info on iterations.
+		//Final info after the ENTIRE tree is explored.
 		String report = "Final iterations: " + counter;
 		if (verbose) report += ". Search space reduced to: " + searchspace; System.out.println(report);
 	}

@@ -72,6 +72,19 @@ public class StateHolder {
 	 
 	public Transform[] CapturedTransforms = new Transform[12];
 	
+	public FailMode failType = FailMode.UNFAILED;
+	
+	public FailMode potentialFailMode = FailMode.UNFAILED;
+	
+	public boolean fail = false;
+	
+	public enum FailMode{
+		BACK,
+		UNFAILED,
+		FRONT
+	}
+	
+	
 	public StateHolder(QWOPInterface gameInterface) {
 		this.gameInterface = gameInterface;
 	}
@@ -172,8 +185,22 @@ public class StateHolder {
 			CapturedShapes[13] = (EdgeShape)gameInterface.game.TrackBody.getFixtureList().getShape().clone();
 		}
 
+		potentialFailMode = CheckFailType();
 	}
 	
+	/** Return the failure type **/
+	private FailMode CheckFailType(){
+		if(TorsoState[2]>-1.25){
+			return FailMode.FRONT;
+		}else{
+			return FailMode.BACK;
+		}
+	}
+	/** Flag this node/state as a failure **/
+	public void flagFailure(){
+		fail = true;
+		failType = potentialFailMode;
+	}
 	
 	/** Go through all the listed bodies and compare their state to the other one entered. This does an abs(This - Other) for all states and weights them according to parameters defined here **/
 	public float Compare(StateHolder other){

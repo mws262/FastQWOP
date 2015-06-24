@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
+
 public class TrialNode {
 	
 	/** if this branch is being viewed separately, we will also be calculating alternative node positions, etc **/
@@ -22,8 +23,15 @@ public class TrialNode {
 	
 	/** Is this state a dead end (based on failures) **/
 	boolean DeadEnd = false;
+	
+	/** If we limit, then later want to expand the tree, we need a flag to temporarily call this a dead end. **/
+	public boolean TempFullyExplored = false;
+	
 	/** Is this node currently fully explored? i.e. everything below it has been explored **/
 	boolean FullyExplored = false;
+	
+	/** Failure mode (if applicable) **/
+	public StateHolder.FailMode FailType = StateHolder.FailMode.UNFAILED;
 	
 	/** Color for this line **/
 	public Color nodeColor;
@@ -47,6 +55,9 @@ public class TrialNode {
 	
 	/** How many children this node could potentially have if all are viable **/
 	public final int PotentialChildren;
+	
+	/** Black means no override. If something else, it will be drawn with a dot of that color **/
+	public Color colorOverride = Color.BLACK;
 	
 	/** Keep track of existing child nodes. Child nodes are deleted when they are failures. **/
 	private ArrayList<TrialNode> ChildNodes = new ArrayList<TrialNode>();
@@ -461,6 +472,7 @@ public class TrialNode {
 	}
 	///// Tree visualization methods end ///////
 	
+	
 	/** If we've gotten beyond the "periodic" portion (8 usually), then propagate new high scores at failure back towards root. We stop at the beginning of the periodic portion. Thus, from 8 on, bestInBranch represents the BEST you can do from this node if you make good decisions **/
 	public void PropagateHighScore(float score){
 		if(TreeDepth >0){
@@ -490,11 +502,6 @@ public class TrialNode {
 			current = current.ParentNode;
 			sequence[i] = current.ControlAction;
 		}
-//
-//		for (int i = 0; i< sequence.length; i++){
-//			System.out.print(sequence[i] + ",");
-//		}
-//		System.out.println();
 		return sequence;
 		
 	}
@@ -507,7 +514,9 @@ public class TrialNode {
 	public TrialNode SampleNew(){ //TODO add checking to make sure that this doesn't do weird things if all nodes are already sampled (should never occur).
 		TrialNode newNode = null;
 		
-		
+		if(FullyExplored){
+			throw new RuntimeException("Cannot sample when there are no unexplored children.");
+		}
 		
 		if (OptionsHolder.PrioritizeNewNodes){ //Should we prioritize the selection of new nodes or just treat all the same.
 			int untested = PotentialChildren - ChildNodes.size(); //How many UNTESTED nodes exist?
@@ -533,8 +542,8 @@ public class TrialNode {
 						}
 					}
 		
-				}
-			}
+				 }
+			  }
 		
 			//If that doesn't work, then try to find an unexplored node.
 			if(OptionsHolder.sampleRandom){ //If sampling randomly, then we make a list of all possible unexplored nodes at this level and just pick these randomly.
@@ -542,7 +551,7 @@ public class TrialNode {
 				int unexploredCount = 0;
 				
 				for (int i = 0; i<ChildNodes.size(); i++){
-					if(	!ChildNodes.get(i).FullyExplored ){
+					if(	!ChildNodes.get(i).FullyExplored && !ChildNodes.get(i).TempFullyExplored){
 						unexplored[unexploredCount] = i;
 						unexploredCount++;
 					}
@@ -555,7 +564,7 @@ public class TrialNode {
 				
 			}else{ //If we don't want to sample randomly amongst the not-fully-explored nodes, then we just grab the first one. This is more efficient, but not as broad of a search.
 				for (int i = 0; i<ChildNodes.size(); i++){
-					if(	!ChildNodes.get(i).FullyExplored ){
+					if(	!ChildNodes.get(i).FullyExplored && !ChildNodes.get(i).TempFullyExplored){
 						newNode = ChildNodes.get(i);
 						return newNode;
 					}
@@ -565,17 +574,17 @@ public class TrialNode {
 			
 			int choices = PotentialChildren;
 			for (TrialNode t: ChildNodes){
-				if (t.FullyExplored || t.DeadEnd) choices--; //We have 1 less choice for every fully explored / dead end node.
+				if (t.FullyExplored || t.DeadEnd || t.TempFullyExplored) choices--; //We have 1 less choice for every fully explored / dead end node.
 			}
 			
 			int count = 0;
+			
 			int selected = 0; 
 			if(OptionsHolder.sampleRandom){ //Do we select randomly amongst the possible untested nodes, or just pick the first index?
 					selected = randgen.nextInt(choices);
 			}
 	
 				int numTested = 0; //We want to go through all potential children, but we also need to keep track of the number of tested nodes so we know the index we're at in ChildNodes. This is kind of cumbersome.
-				
 				//First try to get a completely untested node.
 				for (int i = 0; i<PotentialChildren; i++){
 					
@@ -590,7 +599,7 @@ public class TrialNode {
 							count++;
 						}
 					}else{ //This node must already exist.
-						if (!ChildNodes.get(numTested).DeadEnd && !ChildNodes.get(numTested).FullyExplored){ //If this is not fully explored, then it's potentially the choice.
+						if (!ChildNodes.get(numTested).DeadEnd && !ChildNodes.get(numTested).FullyExplored && !ChildNodes.get(numTested).TempFullyExplored){ //If this is not fully explored, then it's potentially the choice.
 							if(count == selected){	
 								newNode = ChildNodes.get(numTested);
 								return newNode;
@@ -602,13 +611,11 @@ public class TrialNode {
 					}
 		
 				}
-			
-			
-			
-			
 		}
-		
-
+		System.out.println(TreeDepth);
+		System.out.println(TempFullyExplored);
+		System.out.println(NumChildren());
+		System.out.println(ChildNodes.get(0).FullyExplored);
 		throw new RuntimeException("Error in sampling a node. Couldn't find an unexplored or untested node.");
 	}
 
@@ -625,6 +632,9 @@ public class TrialNode {
 		DeadNode.LabelOn = false;
 //		ChildNodes.remove(DeadNode);
 		DeadNode.DeadEnd = true;
+		DeadNode.NodeState.flagFailure();
+		DeadNode.FailType = DeadNode.NodeState.failType;
+		
 		DeadNode.FullyExplored = true;
 		CheckExplored();
 		return FullyExplored;
@@ -652,6 +662,9 @@ public class TrialNode {
 						break;
 					}
 				}
+				if(OptionsHolder.limitDepth){ //We could add a fully explored node, then back up and the node below it is NOT fully explored, but it could be temp fully explored. We need to check this.
+					CheckTempExplored();
+				}
 			}
 		}
 		
@@ -662,6 +675,48 @@ public class TrialNode {
 		}
 
 		return FullyExplored;
+	}
+	
+	/** Temporarily remove this node from action and keep track of Temp fully explored nodes too. **/
+	public void TempRemove(){ //Now returns whether this node is fully explored too.
+		
+		TempFullyExplored = true;
+		ParentNode.CheckTempExplored();
+	}
+	
+	/** Change whether this node or any above it have become temporarily fully explored **/
+	public void CheckTempExplored(){
+		boolean TempFullyExplored = true;
+		for (int i = 0; i<TestedChildren.length; i++){
+			if (!TestedChildren[i]){ //If we find a possible option that's untested, then this node is not fully explored
+				TempFullyExplored = false;
+				
+				break;
+			}
+		}
+		if (FullyExplored){ //If we've visited all nodes, then we should check whether all the nodes underneath are explored or not.
+				for (int i = 0; i<ChildNodes.size(); i++){
+					if (!ChildNodes.get(i).FullyExplored && !ChildNodes.get(i).TempFullyExplored && !ChildNodes.get(i).DeadEnd){ // If we run into a non-explored node, then this node is not fully explored.
+
+						TempFullyExplored = false;
+						break;
+					}
+				}
+		}
+		
+		this.TempFullyExplored = TempFullyExplored;
+		
+		if (TempFullyExplored && TreeDepth>0){
+			ParentNode.CheckTempExplored(); //If this one is fully explored, we should also check its parent.
+		}
+	}
+	
+	/** Remove all those pesky temporarily explored flags when we switch the tree parameters. Recursive to all nodes below this one. **/
+	public void RemoveTempExploredFlag(){
+		TempFullyExplored = false;
+		for (TrialNode t: ChildNodes){
+			t.RemoveTempExploredFlag();
+		}
 	}
 	
 	/** Record the raw score (cost function evaluation) and the delta score. **/

@@ -56,8 +56,7 @@ public class SinglePathViewer implements Schedulable{
 //				sequence += (control[i] + ", ");	
 //			}
 //			sequence += (control[control.length-1] + "");	
-//			
-//			
+		
 			periodicLabel = "";
 			prefixLabel = "";
 			deviationLabel.clear();
@@ -121,7 +120,14 @@ public class SinglePathViewer implements Schedulable{
 			
 			runPane.RunPanel.setLabel(prefixLabel,periodicLabel,deviationLabel);
 			queuedEndPoints.remove(0); //shift the queue down
+			
 			runPane.disable = true;
+		}
+		if(runPane.isActiveTab() && game.manualOverride){
+			runPane.disable = false;
+			game.enterManualOverride();
+			runPane.disable = true;
+			runPane.update();
 		}
 
 		}

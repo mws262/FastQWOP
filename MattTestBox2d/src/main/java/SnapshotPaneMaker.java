@@ -212,41 +212,6 @@ class SnapshotPane extends JPanel{
 				}
 			}
 			
-//			periodicLabel = "";
-//			prefixLabel = "";
-//			deviationLabel.clear();
-//			
-//			for (int i = 0; i<OptionsHolder.prefixLength-1; i++){
-//				if (i>=actionSequence.length-1) break;
-//				prefixLabel += (actionSequence[i] + ", ");
-//				if (i == OptionsHolder.prefixLength-2){
-//					prefixLabel += (actionSequence[OptionsHolder.prefixLength-1] + " "); //No trailing comma on this one.
-//				}
-//			}
-//
-//			
-//			if(OptionsHolder.goDeviations){ //display deviations separately, else string everything after the prefix
-//				for (int i = OptionsHolder.prefixLength; i<OptionsHolder.prefixLength+OptionsHolder.periodicLength; i++){
-//					if (i>=actionSequence.length-1) break;
-//					periodicLabel += (", " + actionSequence[i]);
-//				}
-//				int count = 0;
-//				String devElement = "";
-//				for (int i = OptionsHolder.prefixLength + OptionsHolder.periodicLength; i<actionSequence.length; i++){
-////					if (i>=actionSequence.length-1) break;
-//					devElement += (", " + actionSequence[i]);
-//					count++;
-//					if(count == OptionsHolder.periodicLength || i == actionSequence.length-1){ // add each periodic+deviation set as a separate string in the arraylist.
-//						deviationLabel.add(devElement);
-//						devElement = "";
-//						count = 0;
-//					}
-//				}
-//			}else{
-//				for (int i = OptionsHolder.prefixLength; i<actionSequence.length; i++){
-//					periodicLabel += (", " + actionSequence[i]);
-//				}
-//			}
 		}
 //		System.out.println(deviationLabel.size());
 	}
@@ -318,7 +283,7 @@ class SnapshotPane extends JPanel{
     		//Action sequence label	
     		g.setFont(bigFont);
     		g.setColor(Color.BLACK);
-    		if(prefixLabel != ""){
+    		if(prefixLabel != ""){ //Display the sequence of actions divided into prefix and periodic and deviations.
     	    	g.drawString("Running selected sequence: ", 10,vertTextAnchor);
     	    	g.setColor(Color.RED);
     	    	g.drawString(prefixLabel, 10, vertTextAnchor + vertTextSpacing);

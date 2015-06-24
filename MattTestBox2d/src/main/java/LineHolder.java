@@ -71,34 +71,21 @@ public class LineHolder {
 		
 		
 		LabelOn[fillIndex] = parent.LabelOn;
-		
+		numLines = NodeList.length;
 		fillIndex++;
 	}
 	
 	/** Give this 2 nodes and it will store the line between them. Flag is for colors. TODO Clearly define color flags **/
 	public void AddLine(TrialNode parent, TrialNode child,int flag){
-		switch(flag){
-		case 1:
-//			ColorList[fillIndex] = Color.RED;
-			break;
-		default:
-			break;
-		}
+//		switch(flag){
+//		case 1:
+////			ColorList[fillIndex] = Color.RED;
+//			break;
+//		default:
+//			break;
+//		}
 		
-		LineList[fillIndex][0] = (int)parent.nodeLocation[0];
-		LineList[fillIndex][1] = (int)parent.nodeLocation[1];
-		LineList[fillIndex][2] = (int)child.nodeLocation[0];
-		LineList[fillIndex][3] = (int)child.nodeLocation[1];
-		
-		LineList2[fillIndex][0] = (int)parent.nodeLocation2[0];
-		LineList2[fillIndex][1] = (int)parent.nodeLocation2[1];
-		LineList2[fillIndex][2] = (int)child.nodeLocation2[0];
-		LineList2[fillIndex][3] = (int)child.nodeLocation2[1];
-		
-		NodeList[fillIndex][0] = parent;
-		NodeList[fillIndex][1] = child;
-		
-		fillIndex++;
+		AddLine( parent,  child );
 	}
 	
 	/** Given x and y coordinates, return the nearest node. **/

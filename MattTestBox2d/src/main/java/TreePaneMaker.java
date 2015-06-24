@@ -126,9 +126,9 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	/** Call this externally to force a full update of the tree. This will go through all nodes, collect lines, and tell the graphics to update **/
 	public void update(){
 		startDrawing = true;
-		if(root.PotentialChildren == 1){ //If the root node only has one child, then we're just going to move down and call the next node root for drawing purposes.
-			root = root.GetChild(0);
-		}
+//		if(root.PotentialChildren == 1){ //If the root node only has one child, then we're just going to move down and call the next node root for drawing purposes.
+//			root = root.GetChild(0);
+//		}
 
 		 Lines = root.GetNodeLines();
 		 if (!Lines.equals(null)){
@@ -203,9 +203,6 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
   	  
   	  public TreePane(boolean slave){
   	  	  this.slave = slave;
-  	  	  if(!slave){
-	  	  	  
-  	  	  }
   	  	  addKeyListener(this);
   	  	  addMouseListener(this);
   	  	  addMouseMotionListener(this);
@@ -225,14 +222,15 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
     	  //Go through and draw all the lines defined.
     	  if (startDrawing){ //Make sure this exists.
     		  
-    		  if(mouseTrack || clearBackground){//Completely overwrite the background if dragging.
-        		  g.setColor(Color.WHITE);
-        		  clearBackground = false;
-        		  
-    		  }else{//allow a little bit of alpha to see where new branches are failing.
-        		  g.setColor(new Color(1f,1f,1f,1f)); //Write a new rectangle over the whole thing with some amount of alpha. This means that the failed branches will fade out.
-
-    		  }
+//    		  if(mouseTrack || clearBackground){//Completely overwrite the background if dragging.
+//        		  g.setColor(Color.WHITE);
+//        		  clearBackground = false;
+//        		  
+//    		  }else{//allow a little bit of alpha to see where new branches are failing.
+//        		  g.setColor(new Color(1f,1f,1f,1f)); //Write a new rectangle over the whole thing with some amount of alpha. This means that the failed branches will fade out.
+//
+//    		  }
+    		  g.setColor(Color.WHITE);
     		  g.fillRect(0, 0, OptionsHolder.windowWidth,OptionsHolder.windowHeight);
     		  
     		  
@@ -271,6 +269,27 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	     				}
 	      				
 	      			}
+	     			
+	     			if(Lines.NodeList[i][1].colorOverride != Color.BLACK){
+	     				g.setColor(Lines.NodeList[i][1].colorOverride);
+     					g2.fillOval((int)(Lines.NodeList[i][1].nodeLocation[0]-10*OptionsHolder.sizeFactor), (int)(Lines.NodeList[i][1].nodeLocation[1]-10*OptionsHolder.sizeFactor), (int)(20*OptionsHolder.sizeFactor),(int)(20*OptionsHolder.sizeFactor));
+     				
+	     			}else
+	     			//Draw failure modes by color as dots on the ends of the failed branches
+	     			if (!Lines.NodeList[i][1].TempFullyExplored && Lines.NodeList[i][1].DeadEnd && OptionsHolder.failTypeDisp ){
+	     				if (Lines.NodeList[i][1].FailType == StateHolder.FailMode.BACK){ // Failures -- we fell backwards
+	     					g.setColor(Color.CYAN);
+	     					g2.fillOval((int)(Lines.NodeList[i][1].nodeLocation[0]-5*OptionsHolder.sizeFactor), (int)(Lines.NodeList[i][1].nodeLocation[1]-5*OptionsHolder.sizeFactor), (int)(10*OptionsHolder.sizeFactor),(int)(10*OptionsHolder.sizeFactor));
+	     				}else if(Lines.NodeList[i][1].FailType == StateHolder.FailMode.FRONT){ // Failures -- we fell forward.
+	     					g.setColor(Color.MAGENTA);
+	     					g2.fillOval((int)(Lines.NodeList[i][1].nodeLocation[0]-5*OptionsHolder.sizeFactor), (int)(Lines.NodeList[i][1].nodeLocation[1]-5*OptionsHolder.sizeFactor), (int)(10*OptionsHolder.sizeFactor),(int)(10*OptionsHolder.sizeFactor));
+	     				}
+	     			}
+	     			
+	     			if(Lines.NodeList[i][1].TempFullyExplored && OptionsHolder.failTypeDisp && Lines.NodeList[i][1].NumChildren()==0){ //These are nodes that we've stopped at due to a depth limit, but COULD go further (not failures).
+     					g.setColor(Color.darkGray);
+     					g2.fillOval((int)(Lines.NodeList[i][1].nodeLocation[0]-10*OptionsHolder.sizeFactor), (int)(Lines.NodeList[i][1].nodeLocation[1]-10*OptionsHolder.sizeFactor), (int)(20*OptionsHolder.sizeFactor),(int)(20*OptionsHolder.sizeFactor));
+     				}
 		      		
 		      		if(Lines.LabelOn[i]){ //Draw the label if it's turned on. NOTE: Change nodelist index back to zero for it to only display one action instead of all child node ones. Accidental change that turned out nicely.
 		      			g.setColor(Color.BLACK);
@@ -314,11 +333,22 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	      				
 	      			}
 		      		
-		      		if(Lines.LabelOn[i] && i<Lines.LabelOn.length-1){ //Draw the label if it's turned on. NOTE: Change nodelist index back to zero for it to only display one action instead of all child node ones. Accidental change that turned out nicely.
+		      		if(i<Lines.LabelOn.length && Lines.LabelOn[i] && i<Lines.LabelOn.length-1){ //Draw the label if it's turned on. NOTE: Change nodelist index back to zero for it to only display one action instead of all child node ones. Accidental change that turned out nicely.
 		      			g.setColor(Color.BLACK);
 		      			g.setFont(scaleFont.InterpolateFont(0, 4, OptionsHolder.sizeFactor));
 		      			g.drawString(""+Lines.NodeList[i][1].ControlAction, (int)Lines.NodeList[i][1].nodeLocation2[0], (int)Lines.NodeList[i][1].nodeLocation2[1]);
 		      		}
+		      		
+	     			//Draw failure modes by color as dots on the ends of the failed branches
+	     			if (Lines.NodeList[i][1].DeadEnd && OptionsHolder.failTypeDisp){
+	     					if (Lines.NodeList[i][1].FailType == StateHolder.FailMode.BACK){
+	     						g.setColor(Color.CYAN);
+	     						g2.fillOval((int)(Lines.NodeList[i][1].nodeLocation2[0]-5*OptionsHolder.sizeFactorAlt), (int)(Lines.NodeList[i][1].nodeLocation2[1]-5*OptionsHolder.sizeFactorAlt), (int)(10*OptionsHolder.sizeFactorAlt),(int)(10*OptionsHolder.sizeFactor));
+	     					}else if(Lines.NodeList[i][1].FailType == StateHolder.FailMode.FRONT){
+	     						g.setColor(Color.MAGENTA);
+	     						g2.fillOval((int)(Lines.NodeList[i][1].nodeLocation2[0]-5*OptionsHolder.sizeFactorAlt), (int)(Lines.NodeList[i][1].nodeLocation2[1]-5*OptionsHolder.sizeFactorAlt), (int)(10*OptionsHolder.sizeFactorAlt),(int)(10*OptionsHolder.sizeFactorAlt));
+	     					}
+	     			}
 		      	}
     		  }
 	      	
@@ -727,7 +757,23 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 				break;
 			}
 		}
+	
+    /** externally set the override node **/
+    public void setOverride(TrialNode node){
+		if(OverrideNode != null){
+			OverrideNode.ColorChildren(Color.BLACK); // if we already have an override. then set this old one back to default colors.
+		}
+		focusedNode = node; //Change the focus to the specified new override node.
+		OverrideNode = node; // make the given node our override also
+		Override = true; // set override flag to true.
+		OverrideNode.ColorChildren(Color.ORANGE);
+			
+		if(slaveMaker != null){ //If we have a slave pane, then also give it this node to visualize.
+			slaveMaker.setRoot(focusedNode);		
+		}
+    }
    }
+
 
 	@Override
 	public void setInterval(int interval) {

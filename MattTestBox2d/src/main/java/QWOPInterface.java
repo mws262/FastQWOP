@@ -26,7 +26,6 @@ public class QWOPInterface {
 	
 	public int stepsInRun = 0; //Always counts up until a game reset. Helps ensure we know when we're doing something periodic.
 	
-	
 	public boolean repeatSequence = false;
 	public int prefixLength = OptionsHolder.prefixLength; //How many elements lead up to the repeated portion.
 	public int periodicLength = OptionsHolder.periodicLength; // How many elements are the repeated portion.
@@ -35,6 +34,15 @@ public class QWOPInterface {
 	
 	private boolean failFlag = false;
 	private Scheduler StepSched;
+	
+	/** Do we want manual external keyboard control **/
+	public boolean manualOverride = false;
+	
+	/** flags for each of the QWOP keys being down **/
+	public boolean Q = false;
+	public boolean W = false;
+	public boolean O = false;
+	public boolean P = false;
 	
 	public QWOPInterface() {
 	}
@@ -50,14 +58,25 @@ public class QWOPInterface {
 		Arrays.fill(currentSequence, 0);
 		stepsInRun = 0;
 		failFlag = false; //Reset from previous failures.
-		// If we're visualizing, then either create the visualizer or pass it the new world we're working with.
-//		if (visOn && visRun == null){
-//			visRun = new VisRunner(game.getWorld());
-//		}else if(visOn){
-//			visRun.SwitchWorlds(game.getWorld());
-//		}
+
 		m_world.setContactListener(new CollisionListener(game,this));
 	}
+	
+
+	/** Used for if you actually want to control it using the keyboard **/
+	public void enterManualOverride(){
+		NewGame(true);
+		while(manualOverride){
+			game.everyStep(Q,W, O, P);
+	
+			m_world.step(timestep, veliterations, positerations);
+			if (StepSched != null){
+				StepSched.Iterate();
+			}
+			
+		}
+	}
+	
 	/** Return the current physics world **/
 	public World getWorld(){
 		return m_world;
@@ -82,7 +101,11 @@ public class QWOPInterface {
 	}
 	/** Calculate speed up to this point in units of dist/physsteps **/
 	public float Speed(){
-		return game.TorsoBody.getPosition().x/stepsInRun;
+		if(game != null){
+			return game.TorsoBody.getPosition().x/stepsInRun;
+		}else{
+			return 0;
+		}
 	}
 	
 	/* Check failure based on state */
@@ -94,6 +117,9 @@ public class QWOPInterface {
 	/** Callback calls this to demand instant termination of phys steps **/
 	public void InstaFail(){
 		failFlag = true;
+		if(manualOverride){
+			NewGame(true);
+		}
 	}
 	
 	/* Do sequence of actions */
@@ -120,10 +146,15 @@ public class QWOPInterface {
 	}
 	/* Do one action (delay). Action order is defined here, the actual delay is externally input. Returns the cost.*/
 	public float NextAction(int delay) throws InterruptedException{
+
 		//Select an action:
 		switch (sequencePosition) { 
 		
 		case 1: //Start with a pause
+			Q = false;
+			W = false;
+			O = false;
+			P = false;
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,false, false, false);
 				m_world.step(timestep, veliterations, positerations);
@@ -136,6 +167,12 @@ public class QWOPInterface {
 			}
 			break;
 		case 2: // W-O keys down
+
+			Q = false;
+			W = true;
+			O = true;
+			P = false;
+			
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,true, true, false);
 				m_world.step(timestep, veliterations, positerations);
@@ -148,6 +185,12 @@ public class QWOPInterface {
 			}
 			break;
 		case 3: //Another pause.
+
+			Q = false;
+			W = false;
+			O = false;
+			P = false;
+			
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,false, false, false);
 				m_world.step(timestep, veliterations, positerations);
@@ -160,6 +203,12 @@ public class QWOPInterface {
 			}
 			break;
 		case 4: // Q-P keys down.
+
+			Q = true;
+			W = false;
+			O = false;
+			P = true;
+			
 			for (int j = 0; j<delay; j++){
 				game.everyStep(true,false, false, true);
 				m_world.step(timestep, veliterations, positerations);
@@ -191,7 +240,6 @@ public class QWOPInterface {
 		if(repeatSequence && (currentIndex == periodicLength + prefixLength)){
 			DoPeriodic();
 		}
-
 		return Cost(); //Return the cost associated with the new position.
 	}
 }
@@ -215,7 +263,13 @@ class CollisionListener implements ContactListener{
 		fixtureA.m_body.equals(game.LLArmBody) ||
 		fixtureB.m_body.equals(game.LLArmBody) ||
 		fixtureA.m_body.equals(game.RLArmBody) ||
-		fixtureB.m_body.equals(game.RLArmBody)){
+		fixtureB.m_body.equals(game.RLArmBody)) {
+			QWOPHandler.InstaFail();
+		}
+		if(fixtureA.m_body.equals(game.LThighBody)||
+		fixtureB.m_body.equals(game.LThighBody)||
+		fixtureA.m_body.equals(game.RThighBody)||
+		fixtureB.m_body.equals(game.RThighBody)){
 			QWOPHandler.InstaFail();
 		}
 			
