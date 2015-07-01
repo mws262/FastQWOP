@@ -11,7 +11,8 @@ import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-
+import javax.media.opengl.awt.GLCanvas;
+import javax.media.opengl.awt.GLJPanel;
 
 public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 
@@ -24,7 +25,7 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	TreePaneMaker SelectTreeMaker;
 	
 	JPanel DataPane;
-	JPanel TreePane;
+	GLJPanel TreePane;
 	JPanel RunPane;
 	JPanel SnapshotPane;
 	JPanel SelectTreePane;
@@ -45,8 +46,10 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	    DataConstraints.fill = GridBagConstraints.HORIZONTAL;
 	    DataConstraints.gridx = 0;
 	    DataConstraints.gridy = 0;
-	    DataConstraints.weightx = 0.2;
-	    DataConstraints.ipady = (int)(0.88*OptionsHolder.windowHeight);
+	    DataConstraints.weightx = 0.3;
+//	    DataConstraints.gridwidth = 10;
+	    DataConstraints.ipady = (int)(0.9*OptionsHolder.windowHeight);
+	    DataConstraints.ipadx = (int)(OptionsHolder.windowWidth*0.2);
 	    
 	    DataTabs = new JTabbedPane();
 	    DataTabs.setBorder(BorderFactory.createRaisedBevelBorder());
@@ -67,7 +70,7 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	    this.SnapshotPane = SnapshotMaker.SnapshotPanel;
 	    DataTabs.addTab("State Viewer", SnapshotPane);
 	    
-	    SelectTreeMaker = new TreePaneMaker(root,true);
+	    SelectTreeMaker = new TreePaneMaker(root,true,OptionsHolder.useGLSlave);
 	    SelectTreePane = SelectTreeMaker.TreePanel;
 	    DataTabs.addTab("Select Tree Pane", SelectTreePane);
 
@@ -89,9 +92,11 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	    TreeConstraints.gridx = 10;
 	    TreeConstraints.gridy = 0;
 	    TreeConstraints.weightx = 0.8;
-	    TreeConstraints.ipady = OptionsHolder.windowHeight;
-	    
-	    TreeMaker = new TreePaneMaker(root,false);
+//	    TreeConstraints.gridwidth = 30;
+	    TreeConstraints.ipady = (int) (OptionsHolder.windowHeight*0.95);
+	    TreeConstraints.ipadx = (int)(OptionsHolder.windowWidth*0.8);
+
+	    TreeMaker = new TreePaneMaker(root,false,OptionsHolder.useGLMaster);
 	    this.TreePane = TreeMaker.TreePanel;
 	    TreeMaker.setSnapshotPane(SnapshotMaker);
 	    TreeMaker.TreePanel.setSingleViewer(pathView);
@@ -110,6 +115,8 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
         this.setVisible(true); 
         RunPane.requestFocus();
         repaint();
+        System.out.println(TreePane.getSize().height+","+TreePane.getSize().width);
+        
 	}
 	
 	//Only enable scheduled updates on the panes that are active

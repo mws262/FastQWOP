@@ -1,23 +1,31 @@
-/* TODO: Things I want to add:
- * Color based on cost/value/something
- * Dynamic adding of nodes.
- * Fix the integer scaling issues.
- * 
- * 
- */
-
-
-
 
 import java.awt.BasicStroke;
+import java.awt.BorderLayout;
+import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Frame;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 
+import javax.media.opengl.GL2;
+import javax.media.opengl.GLAutoDrawable;
+import javax.media.opengl.GLCapabilities;
+import javax.media.opengl.GLEventListener;
+import javax.media.opengl.GLProfile;
+import javax.media.opengl.awt.GLCanvas;
+import javax.media.opengl.awt.GLJPanel;
+import javax.media.opengl.glu.GLU;
+import javax.swing.JButton;
 import javax.swing.JFrame;
-import javax.swing.JPanel;
+import javax.swing.JTextArea;
+import javax.vecmath.AxisAngle4f;
+import javax.vecmath.Matrix3f;
+import javax.vecmath.Vector3f;
+
+import com.jogamp.opengl.util.awt.TextRenderer;
+import com.jogamp.opengl.util.gl2.GLUT;
 
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
@@ -27,14 +35,28 @@ import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.ArrayList;
+
+
+/**
+ * Handles all display of trees, but NOT their geometry (geometry is stored in the nodes themselves).
+ * Does colors, line drawing, node selection...
+ * Now has normal jpanel and new openGL versions. In the process of switching wholy to GL but may leave other stuff as backup/debugging.
+ * If this is flagged as a slave panel, it is meant for displaying subtrees only.
+ * 
+ * @author Matt
+ *
+ */
+
 
 public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 
 	private int interval = 1;
-	private boolean activeTab = true;
+	private boolean activeTab = true; //Is this tab active? Important for passing focus between panels for mouse/keyboard callbacks.
 	private boolean slave = false; //If it's a slave, then it's just for viewing specific trees and should not display as much info.
 	
+	//Instructions string gets displayed on the side of the main tree pane, but not the slave(s).
 	public static final String[] instructions = {
 		"Left click & drag pans.",
 		"Scroll wheel zooms.",
@@ -43,14 +65,15 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		"Ctrl-click hides a branch.",
 		"Meta-click selects a point for state viewer.",
 		"Alt-scroll spaces or contracts branches hovered over.",
-		"S turns score display on and off (slows graphics).",
-		"Meta-S turns value display on (slows graphics)",
-		"P pauses the game's graphics (speed boost?)."
+		"S turns score display on and off.",
+		"Meta-S turns value display.",
+		"P pauses the game's graphics (N/A for GL).",
+		"Meta-arrows rotates camera (N/A for JPanel)."
 	};
 	
 	
 	
-	public static int TreeDepthOffset = 0;
+	public static int TreeDepthOffset = 0; //Do we skip an of the original depth of the tree?
 	
 	  /** This is the root node from which the tree will be built out of **/
 	  public TrialNode root;
@@ -87,27 +110,33 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	  /** The actual pane made by this maker **/
 	  public TreePane TreePanel;
 	  
+	  /** If this panel is the master, the give it a reference to the slave panel for passing the focus node between them **/
 	  private TreePaneMaker slaveMaker;
 	  
+	  /** Do we use openGl or the old Graphics2d version? **/
+	  public final boolean useGL;
+	  
 	  //hold the time that the last drawing happened:
-	  long lastTime;
-	  long currTime;
-	  int lastGameNum = 0;
-	  int reportEvery = 10; //Normally games/s moves too much. Only report every handful of display changes.
+	  private long lastTime;
+	  private long currTime;
+	  private int lastGameNum = 0;
+	  private int reportEvery = 40; //Normally games/s moves too much. Only report every handful of display changes (OLD)
 
-	  int style = Font.BOLD;
-	  Font bigFont = new Font ("Ariel", style , 36);
-	  Font smallFont = new Font("Ariel",style, 14);
+	  private int style = Font.BOLD;
+	  private Font bigFont = new Font ("Ariel", style , 36);
+	  private Font smallFont = new Font("Ariel",style, 14);
 	  
 	  public FontScaler scaleFont = new FontScaler(3,20,10);
 
 	//When creating a new visualizer, wee need to know the root node so we can run down the tree and draw it.
-	public TreePaneMaker(TrialNode root, boolean slave) {
-		this.root = root;
+	public TreePaneMaker(TrialNode root, boolean slave, boolean useGL) {
+		
+        this.useGL = useGL;
+        this.root = root;
 		TreePanel = new TreePane(slave);
 		this.slave = slave;
         lastTime = System.currentTimeMillis(); //Grab the starting system time.
-        
+
 	}
 	
 	  public void giveSlave(TreePaneMaker slaveMaker){
@@ -126,13 +155,10 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	/** Call this externally to force a full update of the tree. This will go through all nodes, collect lines, and tell the graphics to update **/
 	public void update(){
 		startDrawing = true;
-//		if(root.PotentialChildren == 1){ //If the root node only has one child, then we're just going to move down and call the next node root for drawing purposes.
-//			root = root.GetChild(0);
-//		}
 
-		 Lines = root.GetNodeLines();
-		 if (!Lines.equals(null)){
-			TreePanel.setTree(Lines);
+		 Lines = root.GetNodeLines(); //Fill up the LineHolder with everything below the specified root.
+		 if (!Lines.equals(null)){ //Make sure it's not null before trying to draw
+			TreePanel.setTree(Lines); //pass the lineholder to the actual panel
 		 	TreePanel.repaint();
 		 }
 		 
@@ -142,6 +168,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		 }
 	}
 	
+	/** Have a reference to the runner snapshot pane, so we can pass new focus nodes to it. **/
     public void setSnapshotPane(SnapshotPaneMaker snap){
   	  SnapshotPane = snap;
     }
@@ -150,6 +177,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	/** finds the standard deviation of all final costs to make a nice scaling for coloring. std dev to avoid outlier skewing **/
 	public void ScaleDist(){
 		if (!scoreDisplay) return; //Don't waste the computation if we're not displaying scores.
+		
 		//Find the mean
 		float mean = 0;
 		for (int i = 0; i<DistHolder.size(); i++){
@@ -186,56 +214,164 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		maxValScaling = mean + stdDev*2f;
 	}
 
-    /** Jpanel inside the jframe **/
-    class TreePane extends JPanel implements MouseListener, MouseMotionListener, MouseWheelListener,KeyListener{
-  	  LineHolder Lines;
-	  private SinglePathViewer pathView;
-  	  boolean mouseTrack = false;
-	  DecimalFormat df = new DecimalFormat("#.#");
-	  int countLastReport = 0; //Some info is only reported every handful of paint calls. Keep a counter.
-	  int gamespersec = 0;
-	  boolean slave = false;
-  	  boolean clearBackground = true;
-  	  int mouseX = 0;
-  	  int mouseY = 0;
-  	  TrialNode focusedNode; //Node that's being selected, clicked, etc.
-  	  TreePaneMaker slaveMaker; //A tree viewer can have a slave panel which can have sub-views of the tree.
+    /**
+     * Actual Jpanel itself that can be added as either a slave or a main tree display.
+     * 
+     * @author Matt
+     *
+     */
+    class TreePane extends GLJPanel implements MouseListener, MouseMotionListener, MouseWheelListener,KeyListener,GLEventListener{
+  	  /** Reference to the container which has all the nodes and lines we wish to display **/
+      private LineHolder Lines;
   	  
+      /** Reference to the runner's single run animator. Needed for passing new focused nodes around **/
+	  private SinglePathViewer pathView;
+	  
+	  /** Flag to know whether the mouse is currently pressed. **/
+  	  private boolean mouseTrack = false;
+  	  
+  	  /** Format numbers to truncate decimal places when displaying distances travelled **/
+	  private DecimalFormat df = new DecimalFormat("#");
+	  
+	  private int countLastReport = 0; //Some info is only reported every handful of paint calls. Keep a counter.
+	  
+	  /** Games/sec counter for display on the window. **/
+	  private int gamespersec = 0;
+	  
+	  /** Is this panel a slave panel? **/
+	  private boolean slave = false;
+
+	  /** Keep track of mouse coordinates within this panel. **/
+  	  private int mouseX = 0;
+  	  private int mouseY = 0;
+  	  
+  	  /** Reference to a selected node **/
+  	  public TrialNode focusedNode; //Node that's being selected, clicked, etc.
+  	  
+  	  /** Reference to the slave panel's maker (if it has a slave) **/
+  	  private TreePaneMaker slaveMaker; //A tree viewer can have a slave panel which can have sub-views of the tree.
+  	  
+  	  /** GLU is the line/point graphics **/
+	  private GLU glu;
+	  
+	  /** GlUT is used for text **/
+	  private GLUT glut;
+	   
+	  private int width=400; // I think these values are meaningless since they change as per the layout manager.
+	  private int height = 200;
+	
+	  /** Actual frame object **/
+	  private Frame frame;
+	  
+	  /** If using openGL, we have to put a special GLCanvas inside the frame **/
+	  private GLCanvas canvas;
+	  	
+	  	
+		//ONLY APPLIES TO GL. Camera Settings. Initially camera is pointed -z, y is up. x is left?
+	  	/** Scaling of node coordinates to GL coordinates. **/
+		public float oldToGLScaling = 0.01f;
+		
+		/** Scaling of mouse movements to GL coordinates. TODO: Probably should just calculate this from view angle **/
+		public float glScaling = 3.5f;
+
+		/** Vector from camera position to target position **/
+	  	private Vector3f eyeToTarget = new Vector3f();
+	  	
+	    /** Position of the camera. */
+	    public Vector3f eyePos = new Vector3f(13, 5, 50);
+	    
+	    /** Position of the camera's focus. */
+	    public Vector3f targetPos = new Vector3f(13, 5, 0);
+	    
+	    /** Define world coordinate's up. */
+	    public Vector3f upVec = new Vector3f(0, 1f, 0);
+	    
+	    /** View frustrum angle. */
+	    public float viewAng = 40;
+	    /** View frustrum near plane distance. */
+	    public float nearPlane = 5;
+	    /** View frustrum far plane distance. */
+	    public float farPlane = 10000;
+	    
+	    /** Camera rotation. Updated every display cycle. **/
+	    public float[] modelViewMat = new float[16];
+	    
+	    // For doing raycast point selection:
+		private TrialNode chosenPt; // selected point
+		private Vector3f clickVec = new Vector3f(0,0,0); // Vector ray of the mouse click.
+		private Vector3f EyeToPoint = new Vector3f(0,0,0); // vector from camera to a selected point.
+		
+		/** For rendering text overlays. Note that textrenderer is for overlays while GLUT is for labels in world space **/
+		TextRenderer textRenderBig;
+		TextRenderer textRenderSmall;
+		
+	  /** Constructor. Set up as either GL or not, Slave or not. **/
   	  public TreePane(boolean slave){
   	  	  this.slave = slave;
-  	  	  addKeyListener(this);
-  	  	  addMouseListener(this);
-  	  	  addMouseMotionListener(this);
-  	  	  addMouseWheelListener(this);
+
+  	  	  if(useGL){
+  	  		 this.setLayout(new BorderLayout());
+  	  		 GLProfile glp = GLProfile.getDefault();
+  	  		 GLCapabilities caps = new GLCapabilities(glp);
+  	  		 canvas = new GLCanvas(caps);
+  	  		 //Not sure why, but this keeps the pane from changing sizes every time I change tabs. The actual numbers seem pretty arbitrary.
+ 	         canvas.setSize(new Dimension(100,30));
+ 	         canvas.setMaximumSize(new Dimension(100,30));
+ 	         canvas.setMinimumSize(new Dimension(100,30));
+
+  	  		 //Add listeners to the canvas rather than frame if we're using GL
+  	  		  canvas.addGLEventListener(this);
+ 	          this.add(canvas);
+ 	       	  canvas.setFocusable(true);
+	   	  	  canvas.addKeyListener(this);
+	   	  	  canvas.addMouseListener(this);
+	   	  	  canvas.addMouseMotionListener(this);
+	   	  	  canvas.addMouseWheelListener(this);
+	   	  	  glut = new GLUT();
+	   	  	  
+	   	  	  textRenderBig = new TextRenderer(new Font("Calibri", Font.BOLD, 36));
+	   	  	  textRenderSmall = new TextRenderer(new Font("Calibri", Font.PLAIN, 18));
+	   	  	  
+	   	  	  //If this is a slave window, we need to move the camera over.
+	   	  	  if(slave){
+	   	  		  eyePos.x -= 10;
+	   	  		  targetPos.x -= 10;
+	   	  	  }
+  	  	  }else{
+  	  		  //Add listeners to the frame itself if we aren't using openGL
+  	  	  	  addKeyListener(this);
+  	  	  	  addMouseListener(this);
+  	  	  	  addMouseMotionListener(this);
+  	  	  	  addMouseWheelListener(this);
+  	  	  	  
+  	  	  }
+	        
   	  }
   	  
+  	  /** If this is the master tree frame, pass it a slave panel **/
   	  private void giveSlave(TreePaneMaker slaveMaker){
   		  this.slaveMaker = slaveMaker;
   	  }
-
+  	  
       public void paintComponent(Graphics g){
-//			viewSingle.RunQueued();
+
+    	  if(useGL && !pauseDraw && canvas != null){   
+    		  canvas.display();
+    	  }else{
     	  if(!pauseDraw){ //Temporarily stop drawing for speed.
     	   Graphics2D g2 = (Graphics2D) g; //Casting to a graphics 2d object for more control.
     	   g2.setStroke(new BasicStroke(0.5f));
     	   
     	  //Go through and draw all the lines defined.
     	  if (startDrawing){ //Make sure this exists.
-    		  
-//    		  if(mouseTrack || clearBackground){//Completely overwrite the background if dragging.
-//        		  g.setColor(Color.WHITE);
-//        		  clearBackground = false;
-//        		  
-//    		  }else{//allow a little bit of alpha to see where new branches are failing.
-//        		  g.setColor(new Color(1f,1f,1f,1f)); //Write a new rectangle over the whole thing with some amount of alpha. This means that the failed branches will fade out.
-//
-//    		  }
+
     		  g.setColor(Color.WHITE);
     		  g.fillRect(0, 0, OptionsHolder.windowWidth,OptionsHolder.windowHeight);
     		  
     		  
+    		  //Version for the NON-slave panel. This one uses the nodePosition positions.
     		  if(!slave){
-	    		  if(focusedNode != null){
+	    		  if(focusedNode != null){ //Color the focusedNode red.
 	    			  g.setColor(Color.RED);
 	    			  g.fillRect((int)focusedNode.nodeLocation[0]-5, (int)focusedNode.nodeLocation[1]-5, 10,10);   			  	  
 	    		  }
@@ -330,7 +466,6 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		      				g2.drawString(df.format(Lines.NodeList[i][1].value), (int)Lines.NodeList[i][1].nodeLocation2[0], (int)Lines.NodeList[i][1].nodeLocation2[1]);
 		      				g2.setColor(Color.BLACK);
 	     				}
-	      				
 	      			}
 		      		
 		      		if(i<Lines.LabelOn.length && Lines.LabelOn[i] && i<Lines.LabelOn.length-1){ //Draw the label if it's turned on. NOTE: Change nodelist index back to zero for it to only display one action instead of all child node ones. Accidental change that turned out nicely.
@@ -387,19 +522,18 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	  			  countLastReport++;
 	  		  }
 	       }
+    	  }
       }
       /** Set the LineHolder to pay attention to **/
       public void setTree(LineHolder Lines){
       	this.Lines = Lines;
       }
-      
-      
+            
       /** Set the single path viewer so we can queue up selected nodes for path viewing **/
       public void setSingleViewer(SinglePathViewer pathView){
     	  this.pathView = pathView;
       }
-      
-      
+          
       /** Set the focused node **/
       public void setFocusNode(TrialNode focus){
     	  focusedNode = focus;
@@ -413,7 +547,6 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
     	  return focusedNode;
       }
 
-      
       /** Convert a cost too a red-green color based on the std deviation sorta-full-scale **/
       public Color getScoreColor(float minScale, float maxScale, float cost)
       {
@@ -436,40 +569,224 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
     	  
     	  float scaledDepth = (float)depth/(float)maxDepth;
     	  
-    	  float H = (float)(scaledDepth* 0.3)+0.45f;
-    	  float S = 0.5f; // Saturation
-    	  float B = 0.9f; // Brightness
+    	  float H = (float)(scaledDepth* 0.38)+0.35f;
+    	  float S = 1f; // Saturation
+    	  float B = 0.85f; // Brightness
 
           return Color.getHSBColor(H, S, B);
       }
+      
+//      
+//      Vector3f debugpt1 = new Vector3f();
+//      Vector3f debugpt2 = new Vector3f();
+      
+      /** Find a vector which represents the click ray in 3D space. Mostly stolen from my cloth simulator. **/
+	    private Vector3f clickVector(int mouseX, int mouseY){
+	    	//Find the vector of the clicked ray in world coordinates.
+	    	
+	    	//Frame height in world dimensions (not pixels)
+	    	float frameHeight;
+	    	float frameWidth;
+	    	
+	    	//Click position in world dimensions
+	    	float xClick;
+	    	float yClick;
+	    	
+	    	//Vector of click direction.
+	    	Vector3f ClickVec;
+	    	
+	    	//Vector of eye position to target position.
+	    	Vector3f CamVec = new Vector3f(0,0,0);
+	    	
+	    	//Camera locally defined to face in y-direction:
+	    	Vector3f LocalCamLookat = new Vector3f(0,1,0);
+	    	
+	    	Vector3f LocalCamUp = new Vector3f(1,0,0);
+	    	
+	    	// Axis and angle of rotation from world coords to camera coords.
+	    	Vector3f RotAxis = new Vector3f(0,0,0);
+	    	float TransAngle;
+	    	
+	    	//Rotation from world coordinates to camera coordinates in both axis angle and matrix forms.
+	    	AxisAngle4f CamToGlobalRot = new AxisAngle4f(0,0,0,0);
+	    	Matrix3f RotMatrix = new Matrix3f(0,0,0,0,0,0,0,0,0);
+	    	
+	    	
+	    	//Frame height and width in world dimensions.
+	    	frameHeight = (float)(2*Math.tan(viewAng/180.0*Math.PI/2.0));
+	    	frameWidth = frameHeight*width/height;
+	    	// Position in world dimensions of click on front viewing plane. Center is defined as zero.
+	    	xClick = frameWidth*(mouseX-width/2)/width;
+	    	yClick = frameHeight*(mouseY-height/2)/height;
+
+	    	// Vector of click in camera coordinates.
+	    	ClickVec = new Vector3f(-yClick,1,-xClick);
+	    	ClickVec.normalize();
+
+	    	// Camera facing origin in world coordinates.
+	    	CamVec.sub(targetPos, eyePos);
+	    	CamVec.normalize();
+	    
+	    	
+	    	//Find transformation -- world frame <-> cam frame
+	    	// Two step process. First I align the camera facing vector direction.
+	    	// Second, I align the "up" vector.
+	    	
+	    	//1st rotation
+	    	RotAxis.cross(LocalCamLookat, CamVec);
+	    	RotAxis.normalize();
+	    	TransAngle = (float)Math.acos(LocalCamLookat.dot(CamVec));
+	    	CamToGlobalRot.set(RotAxis, TransAngle);
+	    	RotMatrix.set(CamToGlobalRot);
+	    	
+	    	//2nd rotation
+	    	RotMatrix.transform(LocalCamUp);
+	    	RotMatrix.transform(ClickVec);
+
+	    	RotAxis.cross(LocalCamUp, upVec);
+	    	RotAxis.normalize();
+	    	TransAngle = (float) Math.acos(LocalCamUp.dot(upVec));
+	    	CamToGlobalRot.set(RotAxis, TransAngle);
+	    	RotMatrix.set(CamToGlobalRot);    	
+
+	    	//Transform the click vector to world coordinates
+	    	RotMatrix.transform(ClickVec);
+	    	
+//	    	debugpt1 = (Vector3f) eyePos.clone();
+//	    	
+//	    	debugpt2 = (Vector3f) ClickVec.clone();
+//	    	float dist = Math.abs(debugpt1.z/ClickVec.z);
+//
+//	    	debugpt2.scale(dist);
+//	    	debugpt2.add(debugpt1);
+
+	    	return ClickVec;
+	    	
+	    }
+	    
+	    /** Take a click vector, find the nearest node to this line. **/
+	    private TrialNode nodeFromRay(Vector3f ClickVec,LineHolder lineList,boolean altFlag){ //Alt flag says whether to use Node location 2 or 1.
+	    	// Determine which point is closest to the clicked ray.
+
+	    	double tanDist;
+	    	double normDistSq;
+//	    	TrialNode chosenPt;
+	    	
+	    	double SmallestDist = 1000;
+	    	for (int i = 0; i<lineList.NodeList.length; i++){
+	    		//Vector from eye to a vertex.
+	    		Vector3f nodePos = new Vector3f();
+	    		if(altFlag){
+			    	nodePos = new Vector3f(oldToGLScaling*lineList.NodeList[i][1].nodeLocation2[0],oldToGLScaling*lineList.NodeList[i][1].nodeLocation2[1],0); //FIX THIS LATER
+	    		}else{
+			    	nodePos = new Vector3f(oldToGLScaling*lineList.NodeList[i][1].nodeLocation[0],oldToGLScaling*lineList.NodeList[i][1].nodeLocation[1],0); //FIX THIS LATE
+	    		}
+
+	    		EyeToPoint.sub(nodePos,eyePos);
+	    		
+	    		tanDist = EyeToPoint.dot(ClickVec);
+	    		normDistSq = EyeToPoint.lengthSquared() - tanDist*tanDist;
+	    		
+	    		if (normDistSq < SmallestDist){
+	    			SmallestDist = normDistSq;
+	    			chosenPt = lineList.NodeList[i][1];
+	    		}
+	    	}
+	    	return chosenPt;
+	    }
+	    
+	    /** Take a click vector, find the coordinates of the projected point at a given level. **/ //Note: assumes trees always stay perpendicular to the z-axis.
+	    private Vector3f planePtFromRay(Vector3f ClickVec, float levelset){ //Alt flag says whether to use Node location 2 or 1.
+	    	// Determine which point is closest to the clicked ray.
+
+	    	Vector3f clickvec = (Vector3f)ClickVec.clone(); //Make a copy so scaling doesn't do weird things further up.
+	    	
+	    	float multiplier = (levelset-eyePos.z)/clickvec.z; // How many clickvecs does it take to reach the plane?
+	    	
+	    	clickvec.scale(multiplier); //scale so it reaches from eye to clicked point
+	    	
+	    	clickvec.add(eyePos); // Add the eye position so we get the actual clicked point.
+	    	clickvec.scale(1/oldToGLScaling); //Scale back to coordinates on the TrialNodes
+	    	return clickvec;
+	    }
+	    
+
+		/**User interaction to rotate the camera longitudinally. Magnitude of rotation is in radians and may be negative.**/
+		public void rotateLongitude(float magnitude){
+			
+			//Vector from target to eye:
+			Vector3f distVec = new Vector3f();
+			distVec.sub(eyePos,targetPos);
+			
+			//Axis to the left in the camera world. Magnitude provided by user.
+			AxisAngle4f rotation = new AxisAngle4f(modelViewMat[0],modelViewMat[4],modelViewMat[8],magnitude);
+			//TODO fix singularity.
+			Matrix3f rotMat = new Matrix3f();
+			rotMat.set(rotation);
+			
+			//Transform the target to eye vector
+			rotMat.transform(distVec);
+			
+			//Add back to get absolute position and set this to be the eye position of the camera.
+			eyePos.add(targetPos,distVec);
+
+		}
+		/**User interaction to rotate the camera latitude-ishly. Magnitude of rotation is in radians and may be negative.**/
+		public void rotateLatitude(float magnitude){
+			
+			//Vector from target to eye:
+			Vector3f distVec = new Vector3f();
+			distVec.sub(eyePos,targetPos);
+			
+			//Axis to the left in the camera world. Magnitude provided by user.
+			AxisAngle4f rotation = new AxisAngle4f(modelViewMat[1],modelViewMat[5],modelViewMat[9],magnitude);
+
+			Matrix3f rotMat = new Matrix3f();
+			rotMat.set(rotation);
+
+			//Transform the target to eye vector
+			rotMat.transform(distVec);
+			
+			//Add back to get absolute position and set this to be the eye position of the camera.
+			eyePos.add(targetPos,distVec);
+		}
+
+	    
 	@Override
 	public void mouseClicked(MouseEvent arg0) {	
-		if (arg0.isAltDown()){ //alt click enables a label on this node
-			if(slave){// If slave, search among the alternate node locations in the subview panel.
+		
+		if(slave){// If slave, search among the alternate node locations in the subview panel.
+			if(useGL){
+				clickVec = clickVector(arg0.getX(), arg0.getY());
+				focusedNode = nodeFromRay(clickVec,Lines,true);
+			}else{
 				focusedNode = Lines.GetNearestNodeAlt(arg0.getX(), arg0.getY());
+			}
+		}else{
+			
+			if(useGL){
+				clickVec = clickVector(arg0.getX(), arg0.getY());
+				focusedNode = nodeFromRay(clickVec,Lines,false);
 			}else{
 				focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
 			}
+			if(slaveMaker != null){ //If we have a slave panel, then change its focus to our focus too
+				slaveMaker.TreePanel.focusedNode = focusedNode;
+			}
+			
+			
+		}
+		
+		if (arg0.isAltDown()){ //alt click enables a label on this node
 			focusedNode.LabelOn = true;
 		}else if (arg0.isControlDown()){ //Control will hide this node and all its children.
-			if(slave){// If slave, search among the alternate node locations in the subview panel.
-				focusedNode = Lines.GetNearestNodeAlt(arg0.getX(), arg0.getY());
-			}else{
-				focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
-			}
+
 			if(focusedNode !=null && focusedNode.TreeDepth > 1){ //Keeps stupid me from hiding everything in one click.
 				focusedNode.hiddenNode = true;
 				focusedNode.ParentNode.RemoveChild(focusedNode); //Try also just killing it from the tree search too.
 			}
 		}else if (arg0.isMetaDown()){
-			if(slave){// If slave, search among the alternate node locations in the subview panel.
-				focusedNode = Lines.GetNearestNodeAlt(arg0.getX(), arg0.getY());
-			}else{
-				focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
-				if(slaveMaker != null){ //If we have a slave panel, then change its focus to our focus too
-					slaveMaker.TreePanel.focusedNode = focusedNode;
-				}
-			}
+
 			if (SnapshotPane != null){
 				SnapshotPane.setNode(focusedNode);
 			}
@@ -494,48 +811,101 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		mouseTrack = true;
 		mouseX = arg0.getX();
 		mouseY = arg0.getY();
-		
 	if (arg0.getButton() == MouseEvent.BUTTON3){ //Right click moves nodes.
+
+		
 		if(slave){// If slave, search among the alternate node locations in the subview panel.
-			focusedNode = Lines.GetNearestNodeAlt(arg0.getX(), arg0.getY());
+			if(useGL){
+				clickVec = clickVector(arg0.getX(), arg0.getY());
+				focusedNode = nodeFromRay(clickVec,Lines,true);
+			}else{
+				focusedNode = Lines.GetNearestNodeAlt(arg0.getX(), arg0.getY());
+			}
 		}else{
-			focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
+			if(useGL){
+				clickVec = clickVector(arg0.getX(), arg0.getY());
+				focusedNode = nodeFromRay(clickVec,Lines,false);
+			}else{
+				focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
+			}
 		}
 	}
-		
+	
 	}
 	@Override
 	public void mouseReleased(MouseEvent arg0) {
 		mouseTrack = false;
-		clearBackground =  true;
 	}
-	
+	//TODO: change temp vars to something better.
 	@Override
 	public void mouseDragged(MouseEvent arg0){
-		
+		//Note: if using old graphics, actually move the point coordinates. if GL, then just move the camera.
 		if (arg0.getButton() == MouseEvent.BUTTON1){ //Left click drags the whole thing.
-			if(slave){
-				root.ShiftNodesAlt(arg0.getX()-mouseX, arg0.getY()-mouseY);
+			
+			if(useGL){
+				//Find x transformed from front plane coordinates (click) to world camera coordinates
+				eyeToTarget.sub(targetPos,eyePos);
+				Vector3f temp1 = new Vector3f();
+				temp1 = (Vector3f) upVec.clone();
+				temp1.scale((arg0.getY()-mouseY)*oldToGLScaling*glScaling);
 
+				Vector3f temp2 = new Vector3f();
+				
+				//Find y transformed
+				temp2.cross(upVec,eyeToTarget);
+				temp2.normalize();
+				temp2.scale((arg0.getX() - mouseX)*oldToGLScaling*glScaling);
+
+				
+				temp1.add(temp2);
+				
+				eyePos.x += temp1.x;
+				eyePos.y += temp1.y;
+				eyePos.z += temp1.z;
+
+				targetPos.x += temp1.x;
+				targetPos.y += temp1.y;
+				targetPos.z += temp1.z;
+
+//				eyePos.x -= (arg0.getX()-mouseX)*oldToGLScaling*glScaling;
+//				eyePos.y += (arg0.getY() - mouseY)*oldToGLScaling*glScaling; //Old graphics had y= 0 at the top, this doesn't now.
+//				targetPos.x -= (arg0.getX()-mouseX)*oldToGLScaling*glScaling;
+//				targetPos.y += (arg0.getY() - mouseY)*oldToGLScaling*glScaling;
+				
+				
 			}else{
-				root.ShiftNodes(arg0.getX()-mouseX, arg0.getY()-mouseY);
+				if(slave){
+					root.ShiftNodesAlt(arg0.getX()-mouseX, arg0.getY()-mouseY);
+	
+				}else{
+					root.ShiftNodes(arg0.getX()-mouseX, arg0.getY()-mouseY);
+				}
 			}
+			//TODO:
 		}else if (arg0.getButton() == MouseEvent.BUTTON3){ //Right click moves nodes.
-			//Calculate the angle between the click and the parent of the click node.
-
-			if(slave){
-				
-				double clickAngle = -Math.atan2((arg0.getX()-focusedNode.ParentNode.nodeLocation2[0]),(arg0.getY()-focusedNode.ParentNode.nodeLocation2[1]))+Math.PI/2.;
-				clickAngle -= focusedNode.nodeAngle2; //Subtract out the current angle.
-				
-				focusedNode.RotateBranchAlt(clickAngle);
-			}else{
-				
-				double clickAngle = -Math.atan2((arg0.getX()-focusedNode.ParentNode.nodeLocation[0]),(arg0.getY()-focusedNode.ParentNode.nodeLocation[1]))+Math.PI/2.;
+			
+			if(useGL){
+				clickVec = clickVector(arg0.getX(), arg0.getY());
+				Vector3f clickedpt = planePtFromRay(clickVec,0);
+				double clickAngle = -Math.atan2((clickedpt.x-focusedNode.ParentNode.nodeLocation[0]),(clickedpt.y-focusedNode.ParentNode.nodeLocation[1]))+Math.PI/2.;
 				clickAngle -= focusedNode.nodeAngle; //Subtract out the current angle.
-				
 				focusedNode.RotateBranch(clickAngle);
-			}	
+			}
+			
+//			//Calculate the angle between the click and the parent of the click node.
+//			if(slave){
+//				
+//				double clickAngle = -Math.atan2((arg0.getX()-focusedNode.ParentNode.nodeLocation2[0]),(arg0.getY()-focusedNode.ParentNode.nodeLocation2[1]))+Math.PI/2.;
+//				clickAngle -= focusedNode.nodeAngle2; //Subtract out the current angle.
+//				
+//				focusedNode.RotateBranchAlt(clickAngle);
+//			}else{
+//				
+//				double clickAngle = -Math.atan2((arg0.getX()-focusedNode.ParentNode.nodeLocation[0]),(arg0.getY()-focusedNode.ParentNode.nodeLocation[1]))+Math.PI/2.;
+//				clickAngle -= focusedNode.nodeAngle; //Subtract out the current angle.
+//				
+//				focusedNode.RotateBranch(clickAngle);
+//			}	
 		}
 			mouseX = arg0.getX();
 			mouseY = arg0.getY();
@@ -566,7 +936,19 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 
 			
 		}else{
-			SizeChanger*=1.1;
+			if(useGL){
+				 eyeToTarget.sub(targetPos, eyePos); //Find vector from the camera eye to the target pos
+//				 if(eyeToTarget.dot(eyeToTarget) != 0){ //catch div by 0 in the normalize.
+//					 eyeToTarget.normalize();
+//				 }else{
+//					 eyeToTarget.set(0,0,1);
+//				 }
+				 glScaling*=0.9;
+				 eyeToTarget.scale(-0.9f);
+				 eyePos.add(eyeToTarget, targetPos);
+			}else{
+				SizeChanger*=1.1;
+			}
 		}
 	}else{
 		if(arg0.isAltDown()){
@@ -582,11 +964,17 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 			}
 			
 		}else{
-			SizeChanger*=0.9;
-		}
+			if(useGL){
+				eyeToTarget.sub(targetPos, eyePos); //Find vector from the camera eye to the target pos
 
+				 eyeToTarget.scale(-1.1f);
+				 glScaling*=1.1;
+				 eyePos.add(eyeToTarget, targetPos);
+			}else{
+				SizeChanger*=0.9;
+			}
+		}
 	}
-	clearBackground = true;
 		
 	}
 
@@ -636,8 +1024,10 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 			if(slaveMaker != null){ //If we have a slave panel, then change its focus to our focus too
 				slaveMaker.TreePanel.focusedNode = focusedNode;
 			}
-			SnapshotPane.setNode(focusedNode);
-			SnapshotPane.update();
+			if(SnapshotPane != null){
+				SnapshotPane.setNode(focusedNode);
+				SnapshotPane.update();
+			}
 			repaint();
 		}
 	}
@@ -694,20 +1084,40 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		
 		//Navigating the focused node tree
 		   int keyCode = arg0.getKeyCode();
-		    switch( keyCode ) { 
+
+		    if(arg0.isMetaDown() && useGL){ //if we're using GL, then we'll move the camera with mac key + arrows
+	        	eyeToTarget.sub(targetPos,eyePos); //if we're rotating the camera, we'll need to update the eye to target vector.
+		    	switch( keyCode ) { 
 		        case KeyEvent.VK_UP: //Go out the branches of the tree
-		        	arrowSwitchNode(0,1);  
+		        	rotateLongitude(0.1f);
 		            break;
 		        case KeyEvent.VK_DOWN: //Go back towards root one level
-		        	arrowSwitchNode(0,-1); 
+		        	rotateLongitude(-0.1f);
 		            break;
 		        case KeyEvent.VK_LEFT: //Go left along an isobranch (like that word?)
-		            arrowSwitchNode(-1,0);
+		        	rotateLatitude(0.1f);
 		            break;
 		        case KeyEvent.VK_RIGHT : //Go right along an isobranch
-		            arrowSwitchNode(1,0);
+		        	rotateLatitude(-0.1f);
 		            break;
-		     }
+			    }
+		     }else{
+				    switch( keyCode ) { 
+			        case KeyEvent.VK_UP: //Go out the branches of the tree
+			        	arrowSwitchNode(0,1);  
+			            break;
+			        case KeyEvent.VK_DOWN: //Go back towards root one level
+			        	arrowSwitchNode(0,-1); 
+			            break;
+			        case KeyEvent.VK_LEFT: //Go left along an isobranch (like that word?)
+			            arrowSwitchNode(-1,0);
+			            break;
+			        case KeyEvent.VK_RIGHT : //Go right along an isobranch
+			            arrowSwitchNode(1,0);
+			            break;
+			     }
+		    	
+		    }
 		    
 		switch(arg0.getKeyChar()){
 		case 's': // toggle the score text at the end of all branches
@@ -772,8 +1182,359 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 			slaveMaker.setRoot(focusedNode);		
 		}
     }
-   }
+    
+    /** Draw a text string using GLUT (for openGL rendering version of my stuff) **/
+	  public void drawString(String toDraw, float x, float y, GL2 gl, GLUT glut ) 
+      {
+        // Fomat numbers with Java.
+        NumberFormat format = NumberFormat.getNumberInstance();
+        format.setMinimumFractionDigits(2);
+        format.setMaximumFractionDigits(2);
+       
+        // Printing fonts, letters and numbers is much simpler with GLUT.
+        // We do not have to use our own bitmap for the font.
+//        gl.glColor3f(0, 0, 0);
+        gl.glRasterPos2d(x,y);
+        glut.glutBitmapString(
+          GLUT.BITMAP_HELVETICA_12, 
+          toDraw);
+      }
 
+    /** 
+     * Main event loop: OpenGL display
+     * advance. GLEventListener implementation.
+     */
+	@Override
+	public void display(GLAutoDrawable drawable) {
+		eyeToTarget.sub(targetPos,eyePos);
+		upVec.cross(eyeToTarget,upVec);
+		upVec.cross(upVec, eyeToTarget);
+		upVec.normalize();
+		
+		
+
+		GL2 gl = drawable.getGL().getGL2();
+		GLUT glut = new GLUT();
+
+		//Background color that defaults when canvas is cleared.
+		gl.glClearColor(0.1f,0.1f,0.2f,1f);
+		//clear it out.
+		gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT);
+		
+		//Line smoothing -- get rid of the pixelated look.
+		gl.glEnable( GL2.GL_LINE_SMOOTH );
+		gl.glEnable( GL2.GL_POLYGON_SMOOTH );
+		gl.glHint( GL2.GL_LINE_SMOOTH_HINT, GL2.GL_NICEST );
+		gl.glHint( GL2.GL_POLYGON_SMOOTH_HINT, GL2.GL_NICEST );
+		gl.glEnable(GL2.GL_BLEND);
+		gl.glBlendFunc(GL2.GL_SRC_ALPHA, GL2.GL_ONE_MINUS_SRC_ALPHA);
+		
+
+		
+		gl.glMatrixMode(GL2.GL_MODELVIEW);
+		if (glu == null) glu = GLU.createGLU();
+		
+		//Camera perspective.
+		gl.glLoadIdentity();
+		glu.gluPerspective(viewAng, (float)width/height, nearPlane, farPlane);
+		glu.gluLookAt(eyePos.x, eyePos.y, eyePos.z, targetPos.x, targetPos.y, targetPos.z, upVec.x, upVec.y, upVec.z);
+		gl.glPopMatrix();
+		gl.glGetFloatv(GL2.GL_MODELVIEW, modelViewMat,0);
+		
+	
+		//Blue sky background:
+		gl.glMatrixMode(GL2.GL_MODELVIEW);
+		gl.glPushMatrix();
+		gl.glLoadIdentity();
+		gl.glMatrixMode(GL2.GL_PROJECTION);
+		gl.glPushMatrix();
+		gl.glLoadIdentity();
+		gl.glBegin (GL2.GL_QUADS);
+		//Bottom part of background:
+//		gl.glColor3f(0.9f, 1.f, 1f); //These commented lines will make it a gradient background. Currently it's white.
+		gl.glColor3f(1f, 1f, 1f);
+		gl.glVertex3f (-1, -1, 0.99f);
+		gl.glVertex3f (1, -1, 0.99f);
+		//Top of background.
+//		gl.glColor3f(0.1f, 0.1f, 0.6f);
+		gl.glColor3f(1f, 1f, 01f);
+		gl.glVertex3f (1, 1, 0.99f);
+		gl.glVertex3f (-1, 1, 0.99f);
+		gl.glEnd ();
+		gl.glPopMatrix();
+		gl.glMatrixMode(GL2.GL_MODELVIEW);
+		gl.glPopMatrix ();
+		if(Lines != null){	
+
+		//This is the GL version of the line drawing.
+
+			if(slave){
+
+				
+				//Display text on the tree for value/score stuff if s and meta-s are pressed. TODO: figure out text size scaling in GLUT
+				if (scoreDisplay){
+					float minscale = 0;// this is so we have a separate colorscaling for the subtrees.
+					float maxscale = 0;
+					boolean firstflag = true;
+					//loop through first to establish upper and lower limits
+					for(int i = 0; i<Lines.NodeList.length; i++){
+						if (Lines.NodeList[i][1].DeadEnd){
+							if(firstflag){ //first time we find an end node, we want to record these as the new scaling limits.
+								minscale = Lines.NodeList[i][1].rawScore;
+								maxscale = Lines.NodeList[i][1].rawScore;
+								firstflag = false;
+							}else
+							if(Lines.NodeList[i][1].rawScore > maxscale){
+								maxscale = Lines.NodeList[i][1].rawScore;
+							}else if(Lines.NodeList[i][1].rawScore < minscale){
+								minscale = Lines.NodeList[i][1].rawScore;
+							}
+													
+							}
+					}
+					//now loop through to actually set the colors and text
+					for(int i = 0; i<Lines.NodeList.length; i++){
+						if (Lines.NodeList[i][1].DeadEnd){
+							gl.glColor3fv(getScoreColor(maxscale,minscale,Lines.NodeList[i][1].rawScore).getColorComponents(null),0);
+
+							drawString(df.format(Lines.NodeList[i][1].rawScore), Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[1],gl,glut);
+						
+							
+							//TODO: FIX SCALING OF COLORS WITHIN THIS SUBTREE!!! (not all that important)
+							}
+					}
+
+				}else if (valDisplay){
+					for(int i = 0; i<Lines.NodeList.length; i++){
+						if(Lines.NodeList[i][1].value != 0){
+							
+							//TODO: FIX SCALING OF COLORS WITHIN THIS SUBTREE!!! (not as relevant for value display).
+
+//	     					g2.setColor(getScoreColor(minValScaling, maxValScaling, Lines.NodeList[i][1].value));
+	 						gl.glColor3fv(getScoreColor(minValScaling,maxValScaling,Lines.NodeList[i][1].value).getColorComponents(null),0);
+
+//		     				g2.setFont(scaleFont.InterpolateFont(maxValScaling,minValScaling,Lines.NodeList[i][1].value*OptionsHolder.sizeFactor));
+		      				drawString(df.format(Lines.NodeList[i][1].value),  Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[1],gl,glut);
+						}
+					}
+						
+				}
+				
+				//Display the focused point in red.
+				gl.glPointSize(50*1/Constants.glScaling);
+				gl.glBegin(GL2.GL_POINTS);
+	    		  if(focusedNode != null){ //Color the focusedNode red.
+	    			  gl.glColor3f(1, 0, 0);
+					  gl.glVertex3d(Constants.oldToGLScaling*focusedNode.nodeLocation2[0], Constants.oldToGLScaling*focusedNode.nodeLocation2[1], 0);		  	  
+	    		  }
+	    		  gl.glEnd();
+				
+				gl.glEnable(GL2.GL_POINT_SMOOTH);
+				gl.glPointSize(10*1/glScaling);
+
+				gl.glBegin(GL2.GL_POINTS);
+					//GL version of the end dot drawing:
+
+					for(int i = 0; i<Lines.NodeList.length; i++){
+						if (!Lines.NodeList[i][1].TempFullyExplored && Lines.NodeList[i][1].DeadEnd && OptionsHolder.failTypeDisp ){
+							if (Lines.NodeList[i][1].FailType == StateHolder.FailMode.BACK){ // Failures -- we fell backwards
+								gl.glColor3f(0, 1, 1);
+								gl.glVertex3d(oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[1], 0);
+							}else if(Lines.NodeList[i][1].FailType == StateHolder.FailMode.FRONT){ // Failures -- we fell forward.
+								gl.glColor3f(1, 0, 1);
+								gl.glVertex3d(Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[1], 0);
+
+							}
+						}
+					}
+					gl.glEnd();	
+				
+				gl.glLineWidth(0.5f);
+				gl.glBegin(GL2.GL_LINES);
+				//color information is stored in each vertex.
+				gl.glColor3f(1.f,0.f,0.f);
+
+
+				
+				
+				for (int i = 0; i<Lines.numLines; i++){
+		      		if(Lines.LineList2[i][2] == 0 && Lines.LineList2[i][3] == 0){ //If the x2 and y2 are 0, we've come to the end of actual lines.
+		      			break;
+		      		}
+		      		if(!Lines.ColorList[i].equals(Color.BLACK)){
+		      			gl.glColor3fv(Lines.ColorList[i].getColorComponents(null),0);
+					}else{
+
+						gl.glColor3fv(getDepthColor(Lines.NodeList[i][1].TreeDepth).getRGBColorComponents(null),0);
+					}
+		      		gl.glVertex3d(Constants.oldToGLScaling*Lines.LineList2[i][0], oldToGLScaling*Lines.LineList2[i][1],0);
+		      		gl.glVertex3d(Constants.oldToGLScaling*Lines.LineList2[i][2], Constants.oldToGLScaling*Lines.LineList2[i][3],0);
+				}
+			}else{ //NOT the slave panel.
+				
+				{//for (int u = 0; u<25; u= u+5){
+				int u = 0;
+				
+				//Display text on the tree for value/score stuff if s and meta-s are pressed. TODO: figure out text size scaling in GLUT
+				if (scoreDisplay){
+					for(int i = 0; i<Lines.NodeList.length; i++){
+						if (Lines.NodeList[i][1].DeadEnd){
+							gl.glColor3fv(getScoreColor(minDistScaling,maxDistScaling,-Lines.NodeList[i][1].rawScore).getColorComponents(null),0);
+
+							drawString(df.format(Lines.NodeList[i][1].rawScore), Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[1],gl,glut);
+						}
+					}
+				}else if (valDisplay){
+					for(int i = 0; i<Lines.NodeList.length; i++){
+						if(Lines.NodeList[i][1].value != 0){
+//	     					g2.setColor(getScoreColor(minValScaling, maxValScaling, Lines.NodeList[i][1].value));
+	 						gl.glColor3fv(getScoreColor(minValScaling,maxValScaling,Lines.NodeList[i][1].value).getColorComponents(null),0);
+
+//		     				g2.setFont(scaleFont.InterpolateFont(maxValScaling,minValScaling,Lines.NodeList[i][1].value*OptionsHolder.sizeFactor));
+		      				drawString(df.format(Lines.NodeList[i][1].value),  Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[1],gl,glut);
+						}
+					}
+						
+				}
+
+				//Display the focused point in red.
+				gl.glPointSize(50*1/Constants.glScaling);
+				gl.glBegin(GL2.GL_POINTS);
+	    		  if(focusedNode != null){ //Color the focusedNode red.
+	    			  gl.glColor3f(1, 0, 0);
+					  gl.glVertex3d(Constants.oldToGLScaling*focusedNode.nodeLocation[0], Constants.oldToGLScaling*focusedNode.nodeLocation[1], u);		  	  
+	    		  }
+	    		  gl.glEnd();
+	    		  
+
+				gl.glEnable(GL2.GL_POINT_SMOOTH);
+				gl.glPointSize(10*1/Constants.glScaling);
+
+				gl.glBegin(GL2.GL_POINTS);
+					//GL version of the end dot drawing:
+				
+					for(int i = 0; i<Lines.NodeList.length; i++){
+
+						if (!Lines.NodeList[i][1].TempFullyExplored && Lines.NodeList[i][1].DeadEnd && OptionsHolder.failTypeDisp ){
+							if (Lines.NodeList[i][1].FailType == StateHolder.FailMode.BACK){ // Failures -- we fell backwards
+								gl.glColor3f(0, 1, 1);
+								gl.glVertex3d(Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[1], u);
+							}else if(Lines.NodeList[i][1].FailType == StateHolder.FailMode.FRONT){ // Failures -- we fell forward.
+								gl.glColor3f(1, 0, 1);
+								gl.glVertex3d(Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[1], u);
+
+							}
+						}
+		     			if(Lines.NodeList[i][1].TempFullyExplored && OptionsHolder.failTypeDisp && Lines.NodeList[i][1].NumChildren()==0){ //These are nodes that we've stopped at due to a depth limit, but COULD go further (not failures).
+		     				gl.glColor3f(0.9f, 0.9f, 0.9f);
+	     					gl.glVertex3d(Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[1], u);	 
+					
+		     			}
+					}
+					gl.glEnd();	
+				
+				gl.glLineWidth(0.5f);
+				gl.glBegin(GL2.GL_LINES);
+				//color information is stored in each vertex.
+				gl.glColor3f(1.f,0.f,0.f);
+//				gl.glVertex3f(debugpt1.x,debugpt1.y,debugpt1.z);
+//				gl.glVertex3f(debugpt2.x,debugpt2.y,debugpt2.z);
+			
+				for (int i = 0; i<Lines.numLines; i++){
+		      		if(Lines.LineList[i][2] == 0 && Lines.LineList[i][3] == 0){ //If the x2 and y2 are 0, we've come to the end of actual lines.
+		      			break;
+		      		}
+		      		if(!Lines.ColorList[i].equals(Color.BLACK)){
+		      			gl.glColor3fv(Lines.ColorList[i].getColorComponents(null),0);
+					}else{						
+						gl.glColor3fv(getDepthColor(Lines.NodeList[i][1].TreeDepth).getRGBColorComponents(null),0);
+					}
+		      		gl.glVertex3d(Constants.oldToGLScaling*Lines.LineList[i][0], Constants.oldToGLScaling*Lines.LineList[i][1],u);
+		      		gl.glVertex3d(Constants.oldToGLScaling*Lines.LineList[i][2], Constants.oldToGLScaling*Lines.LineList[i][3],u);
+				}
+
+			}
+			}
+		gl.glEnd();
+			
+		if(!slave){ //for a slave panel, we don't want this extra info.
+			//Draw games played and games/sec in upper left.
+			  textRenderBig.beginRendering(width, height); 
+			  textRenderBig.setColor(0f, 0f, 0f, 1.0f); 
+
+			  textRenderBig.draw(OptionsHolder.gamesPlayed + " Games played", 20, height-50);
+	  		  
+	  		  //Draw games/s
+	  		  if(countLastReport>reportEvery){
+	  			  countLastReport = 0; //Reset the counter.
+		  		  currTime = System.currentTimeMillis();
+	  			  gamespersec = (int)((OptionsHolder.gamesPlayed-lastGameNum)*1000./(currTime-lastTime));
+	  			  textRenderBig.draw(gamespersec + "  games/s", 20, height-85);
+		  		  lastGameNum = OptionsHolder.gamesPlayed;
+		  		  lastTime = currTime;
+	  		  }else{
+	  			  textRenderBig.draw(gamespersec + "  games/s", 20, height-85);
+	  			  countLastReport++;
+	  		  }
+				textRenderBig.endRendering();
+				
+				//Also draw instructions.
+			  	textRenderSmall.beginRendering(width, height);
+				textRenderBig.setColor(0f, 0f, 0f, 0.3f); 
+			    for (int i = 0; i<instructions.length; i++){		
+			    	textRenderSmall.draw(instructions[instructions.length-1-i], 20, i*20+15);
+			    }
+			    textRenderSmall.endRendering();
+			    
+				
+	       }
+
+		}
+	}
+
+	
+	@Override
+	public void dispose(GLAutoDrawable arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void init(GLAutoDrawable drawable) {
+		GL2 gl = drawable.getGL().getGL2();
+		System.err.println("INIT GL IS: " + gl.getClass().getName());
+
+		gl.setSwapInterval(1);
+		gl.glEnable(GL2.GL_DEPTH_TEST);
+		gl.glLineWidth(1);
+
+		gl.glEnable(GL2.GL_NORMALIZE);
+
+		// SETUP LIGHTING
+		gl.glMatrixMode(GL2.GL_MODELVIEW);
+		gl.glLoadIdentity();
+		gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_POSITION, Constants.lightPos, 0);
+	    gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_AMBIENT, Constants.lightAmbient, 0);
+		gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_DIFFUSE, Constants.lightDiffuse, 0);
+	    gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_SPECULAR, Constants.lightSpecular, 0);
+	    gl.glEnable(GL2.GL_LIGHT0);
+	  
+		
+	}
+
+	@Override
+	public void reshape(GLAutoDrawable drawable, int x, int y, int width, int height){
+		System.out.println("width="+width+", height="+height);
+		height = Math.max(height, 1); // avoid height=0;
+		
+		this.width  = width;
+		this.height = height;
+//	
+	 	GL2 gl = drawable.getGL().getGL2();
+		gl.glViewport(0,0,width,height);
+		
+	}
+   }
 
 	@Override
 	public void setInterval(int interval) {

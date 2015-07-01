@@ -8,12 +8,11 @@ public class ExhaustiveQwop {
 
 	public static boolean verbose = OptionsHolder.verboseOn;
 	
-	public static boolean goPeriodic = OptionsHolder.goPeriodic;
 	
-	private static TrialNode RootNode;
+	public static TrialNode RootNode;
 	private static int depth = OptionsHolder.treeDepth;
 	
-	private static QWOPInterface QWOPHandler;
+	public static QWOPInterface QWOPHandler;
 	
 	private final static Random rand = new Random();
 	
@@ -27,7 +26,7 @@ public class ExhaustiveQwop {
 		// TODO Auto-generated constructor stub
 	}
 	
-	public static void main(String args[]) throws SecurityException, IllegalArgumentException, NoSuchFieldException, IllegalAccessException{
+	public static void RunGame() throws SecurityException, IllegalArgumentException, NoSuchFieldException, IllegalAccessException{
 		
 		if(OptionsHolder.limitDepth && OptionsHolder.stochasticDepth){
 			throw new RuntimeException("Can't both limit depth and do stochastic depth. Change this in the options holder");
@@ -441,7 +440,7 @@ public class ExhaustiveQwop {
 				
 				if(VisRoot.TreeMaker.Override){ //This lets us explore a specific branch by overriding which node the process resets to.
 
-						VisRoot.TreeMaker.OverrideNode.ColorChildren(Color.ORANGE);
+						VisRoot.TreeMaker.OverrideNode.ColorChildren(Color.RED);
 						//Once we've exhausted our options, set back to root node and turn off this search option in the treemaker.
 						CurrentNode = currentRoot;
 						if(CurrentNode.FullyExplored || CurrentNode.DeadEnd){

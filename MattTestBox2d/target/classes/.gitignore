@@ -1,5 +1,7 @@
 /META-INF/
-/QWOPInterface$FailMode.class
-/StateHolder$FailMode.class
-/GoodNodes.class
-/NodeScorer.class
+/Snippet.class
+/UserInteraction.class
+/TreePaneMaker$TreePane$1.class
+/StatsPane.class
+/TreeJudge.class
+/TreeParameters.class
