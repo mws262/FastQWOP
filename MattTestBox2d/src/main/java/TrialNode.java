@@ -80,47 +80,52 @@ public class TrialNode {
 	public double nodeAngle2 = 0; //Keep track of the angle that the line previous node to this node makes.
 	public double sweepAngle2 = 2*Math.PI;
 	
-	//Action list order and actions.
-	public static final int[][] ActionList = OptionsHolder.ActionList;
+	public TreeParameters tp;
 	
-	public static final int[][] DeviationsList = OptionsHolder.DeviationList;
+	public float height = 0;
+	
+	//Action list order and actions.
+//	public static final int[][] ActionList = OptionsHolder.ActionList;
+	
+//	public static final int[][] DeviationsList = OptionsHolder.DeviationList;
 
-	public int[] OurPeriodicChoice = new int[OptionsHolder.periodicLength];
+	public int[] OurPeriodicChoice;
 	
 	/** Constructor for making any nodes below the root node **/
 	public TrialNode(TrialNode ParentAction, int ControlIndex) {
 		this.ParentNode = ParentAction;
-
-		int prefix = OptionsHolder.prefixLength;
-		int periodic = OptionsHolder.periodicLength;
-		
+		tp = ParentNode.tp; //Make sure the same tree parameters are inherited all the way down.
+		height = tp.TreeLevel;
+		int prefix = tp.prefixLength;
+		int periodic = tp.periodicLength;
+		OurPeriodicChoice = new int[tp.periodicLength];
 		
 		TreeDepth = ParentAction.TreeDepth + 1; // When we make nodes, we go down the tree.
 		this.ControlIndex = ControlIndex;
 		
 		//Do we repeat the last 4 elements over and over or do we start the whole sequence over.
-		if(OptionsHolder.repeatSelectionInPeriodic && ParentNode.NodeSequence >= prefix){ //Only do this if we're past the prefix.
+		if(tp.repeatSelectionInPeriodic && ParentNode.NodeSequence >= prefix){ //Only do this if we're past the prefix.
 			
 			NodeSequence = (ParentAction.NodeSequence-prefix)%periodic + 1 + prefix;
 			int NodeSequenceNext = (ParentAction.NodeSequence-prefix + 1)%periodic + 1+ prefix;
 			
-			ControlAction = ActionList[NodeSequence - 1][ControlIndex];
-			TestedChildren = new boolean[ActionList[NodeSequenceNext-1].length]; //children belong to 2.
+			ControlAction = tp.ActionList[NodeSequence - 1][ControlIndex];
+			TestedChildren = new boolean[tp.ActionList[NodeSequenceNext-1].length]; //children belong to 2.
 			Arrays.fill(TestedChildren, false);
 			
-			PotentialChildren = ActionList[NodeSequenceNext-1].length;
+			PotentialChildren = tp.ActionList[NodeSequenceNext-1].length;
 			
-		}else if(OptionsHolder.goDeviations && ParentNode.NodeSequence >= prefix+periodic){
+		}else if(tp.goDeviations && ParentNode.NodeSequence >= prefix+periodic){
 			//We've made it past both periodic and prefix. Now we switch back to the same periodic one with a bit of deviation based on index.
 			OurPeriodicChoice = ParentNode.OurPeriodicChoice; //Copy the period from the previous node.
 			
 			NodeSequence = (ParentAction.NodeSequence-prefix-periodic)%periodic + periodic + prefix + 1;
 			int NodeSequenceNext = (ParentAction.NodeSequence-prefix-periodic + 1 )%periodic + periodic + prefix + 1;
-			ControlAction = DeviationsList[NodeSequence - 1 - periodic - prefix][ControlIndex] + OurPeriodicChoice[NodeSequence - 1 - periodic - prefix];
-			TestedChildren = new boolean[DeviationsList[NodeSequenceNext-1 - periodic - prefix].length]; //children belong to 2.
+			ControlAction = tp.DeviationList[NodeSequence - 1 - periodic - prefix][ControlIndex] + OurPeriodicChoice[NodeSequence - 1 - periodic - prefix];
+			TestedChildren = new boolean[tp.DeviationList[NodeSequenceNext-1 - periodic - prefix].length]; //children belong to 2.
 			Arrays.fill(TestedChildren, false);
 			
-			PotentialChildren = DeviationsList[NodeSequenceNext-1 - periodic - prefix].length;
+			PotentialChildren = tp.DeviationList[NodeSequenceNext-1 - periodic - prefix].length;
 			
 //			for (int i = 0; i<OurPeriodicChoice.length; i++){
 //				System.out.print(OurPeriodicChoice[i]+",");
@@ -132,16 +137,16 @@ public class TrialNode {
 //			System.out.println("deviation: " + DeviationsList[NodeSequence - 1 - periodic - prefix][ControlIndex]);
 		}else{
 //			System.out.println("bug" + ParentNode.NodeSequence);
-			NodeSequence = (ParentAction.NodeSequence%ActionList.length) + 1;
-			int NodeSequenceNext = ((ParentAction.NodeSequence + 1)%ActionList.length) + 1; //next action might wrap around.
+			NodeSequence = (ParentAction.NodeSequence%tp.ActionList.length) + 1;
+			int NodeSequenceNext = ((ParentAction.NodeSequence + 1)%tp.ActionList.length) + 1; //next action might wrap around.
 			
-			ControlAction = ActionList[NodeSequence-1][ControlIndex];
-			if(OptionsHolder.goDeviations && NodeSequence == prefix+periodic){
-				TestedChildren = new boolean[DeviationsList[0].length]; //If we're at end of periodic and going deviations, then the next set of choices is from the differently-lengthed deviationslist.
-				PotentialChildren = DeviationsList[0].length;
+			ControlAction = tp.ActionList[NodeSequence-1][ControlIndex];
+			if(tp.goDeviations && NodeSequence == prefix+periodic){
+				TestedChildren = new boolean[tp.DeviationList[0].length]; //If we're at end of periodic and going deviations, then the next set of choices is from the differently-lengthed deviationslist.
+				PotentialChildren = tp.DeviationList[0].length;
 			}else{
-				TestedChildren = new boolean[ActionList[NodeSequenceNext-1].length]; //children belong to 2.
-				PotentialChildren = ActionList[NodeSequenceNext-1].length;
+				TestedChildren = new boolean[tp.ActionList[NodeSequenceNext-1].length]; //children belong to 2.
+				PotentialChildren = tp.ActionList[NodeSequenceNext-1].length;
 			}
 			Arrays.fill(TestedChildren, false);
 			
@@ -157,7 +162,7 @@ public class TrialNode {
 		}
 		
 		//If we're doing periodic+specified deviations, we need to keep or build a copy of that "periodic" part.
-		if(OptionsHolder.goDeviations){
+		if(tp.goDeviations){
 			OurPeriodicChoice = ParentNode.OurPeriodicChoice; //Copy the period from the previous node.
 			if(ParentNode.NodeSequence >= prefix && ParentNode.NodeSequence < prefix + periodic){ //And potentially add if the list is incomplete
 				OurPeriodicChoice[ParentNode.NodeSequence-prefix] = ControlAction;
@@ -180,19 +185,21 @@ public class TrialNode {
 //		}
 	}
 	
-	/** Constructor for creating a root node. **/
-	public TrialNode() {
+	/** Constructor for creating a root node. Must specify tree parameters at root and ONLY at root. **/
+	public TrialNode(TreeParameters tp) {
 		System.out.println("Root node made. This message should only show once.");
+		this.tp = tp;
 		ParentNode = null;
 		ControlIndex = -1; // This is just to make sure that this index never gets used if this is the root node.
 		NodeSequence = 0; //The root node is treated as even just to make sure later nodes work right.
-		TestedChildren = new boolean[ActionList[0].length];
+		TestedChildren = new boolean[tp.ActionList[0].length];
 		Arrays.fill(TestedChildren, false);
 		ControlAction = -1;
 		TreeDepth = 0;
+		height = tp.TreeLevel;
 		
-		PotentialChildren = ActionList[0].length;
-		
+		PotentialChildren = tp.ActionList[0].length;
+		OurPeriodicChoice = new int[tp.periodicLength];
 		
 		//For the root node, the point is simply the origin as defined by the center of the window.
 		nodeLocation[0] = OptionsHolder.growthCenter[0];
@@ -518,12 +525,12 @@ public class TrialNode {
 			throw new RuntimeException("Cannot sample when there are no unexplored children.");
 		}
 		
-		if (OptionsHolder.PrioritizeNewNodes){ //Should we prioritize the selection of new nodes or just treat all the same.
+		if (tp.PrioritizeNewNodes){ //Should we prioritize the selection of new nodes or just treat all the same.
 			int untested = PotentialChildren - ChildNodes.size(); //How many UNTESTED nodes exist?
 			if (untested>0){ //If there are zero untested nodes, skip.
 				int count = 0;
 				int selected = 0; 
-				if(OptionsHolder.sampleRandom){ //Do we select randomly amongst the possible untested nodes, or just pick the first index?
+				if(tp.sampleRandom){ //Do we select randomly amongst the possible untested nodes, or just pick the first index?
 					selected = randgen.nextInt(untested);
 				}
 	
@@ -546,7 +553,7 @@ public class TrialNode {
 			  }
 		
 			//If that doesn't work, then try to find an unexplored node.
-			if(OptionsHolder.sampleRandom){ //If sampling randomly, then we make a list of all possible unexplored nodes at this level and just pick these randomly.
+			if(tp.sampleRandom){ //If sampling randomly, then we make a list of all possible unexplored nodes at this level and just pick these randomly.
 				int[] unexplored = new int[ChildNodes.size()]; //Keep track of the indices of all unexplored nodes. This array is likely oversized for safety's sake.
 				int unexploredCount = 0;
 				
@@ -580,7 +587,7 @@ public class TrialNode {
 			int count = 0;
 			
 			int selected = 0; 
-			if(OptionsHolder.sampleRandom){ //Do we select randomly amongst the possible untested nodes, or just pick the first index?
+			if(tp.sampleRandom){ //Do we select randomly amongst the possible untested nodes, or just pick the first index?
 					selected = randgen.nextInt(choices);
 			}
 	
@@ -662,7 +669,7 @@ public class TrialNode {
 						break;
 					}
 				}
-				if(OptionsHolder.limitDepth){ //We could add a fully explored node, then back up and the node below it is NOT fully explored, but it could be temp fully explored. We need to check this.
+				if(tp.limitDepth){ //We could add a fully explored node, then back up and the node below it is NOT fully explored, but it could be temp fully explored. We need to check this.
 					CheckTempExplored();
 				}
 			}

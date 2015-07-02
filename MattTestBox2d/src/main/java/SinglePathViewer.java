@@ -20,6 +20,9 @@ public class SinglePathViewer implements Schedulable{
 	public String periodicLabel = "";
 	public ArrayList<String> deviationLabel = new ArrayList<String>();
 	
+	public int prefixLength = 8;
+	public int periodicLength = 4;
+	
 	public SinglePathViewer(QWOPInterface game) {
 		this.game = game;
 	}
@@ -61,10 +64,10 @@ public class SinglePathViewer implements Schedulable{
 			prefixLabel = "";
 			deviationLabel.clear();
 			
-			for (int i = 0; i<OptionsHolder.prefixLength; i++){
+			for (int i = 0; i<prefixLength; i++){
 				if (i>control.length-1) break;
 				String divider = ", ";
-				if (i< OptionsHolder.prefixLength-1 && i < control.length-1){
+				if (i< prefixLength-1 && i < control.length-1){
 					if(control[i+1]<10){
 						divider += "  "; //If it's a single digit number, then add an extra space to make things even out.
 					}
@@ -74,10 +77,10 @@ public class SinglePathViewer implements Schedulable{
 //					prefixLabel += (control[OptionsHolder.prefixLength-1] + " "); //No trailing comma on this one.
 //				}
 			}
-			for (int i = OptionsHolder.prefixLength; i<OptionsHolder.prefixLength+OptionsHolder.periodicLength; i++){
+			for (int i = prefixLength; i<prefixLength+periodicLength; i++){
 				if (i>control.length-1) break;
 				String divider = ", ";
-				if (i< OptionsHolder.prefixLength+OptionsHolder.periodicLength-1 && i < control.length-1){
+				if (i< prefixLength+periodicLength-1 && i < control.length-1){
 					if (control[i+1]<10){
 						divider += "  "; //If it's a single digit number, then add an extra space to make things even out.
 					}
@@ -86,7 +89,7 @@ public class SinglePathViewer implements Schedulable{
 			}
 			int count = 0;
 			String devElement = "";
-			for (int i = OptionsHolder.prefixLength + OptionsHolder.periodicLength; i<control.length; i++){
+			for (int i = prefixLength + periodicLength; i<control.length; i++){
 //				if (i>=control.length-1) break;
 				String divider = ", ";
 				if (i< control.length-1){
@@ -96,7 +99,7 @@ public class SinglePathViewer implements Schedulable{
 				}
 				devElement += ( control[i] + divider );
 				count++;
-				if(count == OptionsHolder.periodicLength || i == control.length-1){ // add each periodic+deviation set as a separate string in the arraylist.
+				if(count == periodicLength || i == control.length-1){ // add each periodic+deviation set as a separate string in the arraylist.
 					deviationLabel.add(devElement);
 					devElement = "";
 					count = 0;

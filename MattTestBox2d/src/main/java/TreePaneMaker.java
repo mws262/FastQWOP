@@ -76,11 +76,9 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	public static int TreeDepthOffset = 0; //Do we skip an of the original depth of the tree?
 	
 	  /** This is the root node from which the tree will be built out of **/
-	  public TrialNode root;
+	  public ArrayList<TreeHandle> trees;
+	  public TreeHandle activeTree;
 	  private SnapshotPaneMaker SnapshotPane;
-
-	  /** Object which holds current line data **/
-	  LineHolder Lines;
 	  
 	  /** Min and max scaling of end costs -- gotten by taking 2.5 std devs out on either side of the mean final costs **/
 	  public float minDistScaling = 0;
@@ -128,39 +126,51 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	  
 	  public FontScaler scaleFont = new FontScaler(3,20,10);
 
-	//When creating a new visualizer, wee need to know the root node so we can run down the tree and draw it.
-	public TreePaneMaker(TrialNode root, boolean slave, boolean useGL) {
+	  /** To create a new visualizer, must supply a starting tree and whether this is a slave panel **/
+	  public TreePaneMaker(TreeHandle TH, boolean slave, boolean useGL) {
 		
         this.useGL = useGL;
-        this.root = root;
+        if(!trees.contains(TH)){ // If we don't have this root in our list, then add it.
+        	trees.add(TH);
+        }
+        
+        //Create the actual JPanel for the tree. Make sure the treepane knows if it's a slave.
 		TreePanel = new TreePane(slave);
 		this.slave = slave;
         lastTime = System.currentTimeMillis(); //Grab the starting system time.
 
 	}
 	
+	  /** If this is the main pane, it should be given access to its slave (if it exists) **/
 	  public void giveSlave(TreePaneMaker slaveMaker){
   		  this.slaveMaker = slaveMaker;
   		  TreePanel.giveSlave(slaveMaker);
   	  }
 	
-	/** Change what the tree viewer thinks is the the root node **/
-	public void setRoot(TrialNode root){
-		this.root = root;
-		if(slave){ //If this is a slave viewer, then make an alternate tree for it.
-			root.MakeAltTree(true); //True means this is the new root of the alternate tree.
+	/** Add another root node to the list of trees we're tracking. **/
+	public void addTree(TreeHandle TH){
+		
+		if(!trees.contains(TH)){
+			trees.add(TH);
+		}else{
+			System.out.println("we tried to add a root already added in TreePaneMaker.");
 		}
 	}
 	
-	/** Call this externally to force a full update of the tree. This will go through all nodes, collect lines, and tell the graphics to update **/
+	/** Let the Tree maker and potentially its slave what tree we're working on **/
+	public void setActiveTree(TreeHandle activeTree){
+		if(!slave){
+			slaveMaker.setActiveTree(activeTree);
+		}
+		this.activeTree = activeTree;
+	}
+	
+	/** Call this externally to force a full update of the tree. This will go through all nodes and all trees, collect lines, and tell the graphics to update **/
 	public void update(){
-		startDrawing = true;
-
-		 Lines = root.GetNodeLines(); //Fill up the LineHolder with everything below the specified root.
-		 if (!Lines.equals(null)){ //Make sure it's not null before trying to draw
-			TreePanel.setTree(Lines); //pass the lineholder to the actual panel
-		 	TreePanel.repaint();
-		 }
+		startDrawing = true; //This makes sure that no drawing occurs until I actually call updates. This prevents drawing while tons of stuff is still null.
+		
+		TreePanel.setTree(trees);
+		TreePanel.repaint();
 		 
 		 //If we have a slave pane, and we've changed its focus node, then let it change in this pane too.
 		 if(slaveMaker != null && slaveMaker.TreePanel.focusedNode != null && !slaveMaker.TreePanel.focusedNode.equals(TreePanel.focusedNode)){
@@ -222,7 +232,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
      */
     class TreePane extends GLJPanel implements MouseListener, MouseMotionListener, MouseWheelListener,KeyListener,GLEventListener{
   	  /** Reference to the container which has all the nodes and lines we wish to display **/
-      private LineHolder Lines;
+      private ArrayList<TreeHandle> trees;
   	  
       /** Reference to the runner's single run animator. Needed for passing new focused nodes around **/
 	  private SinglePathViewer pathView;
@@ -230,10 +240,10 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	  /** Flag to know whether the mouse is currently pressed. **/
   	  private boolean mouseTrack = false;
   	  
-  	  /** Format numbers to truncate decimal places when displaying distances travelled **/
+  	  /** Format numbers to truncate decimal places when displaying distances traveled **/
 	  private DecimalFormat df = new DecimalFormat("#");
 	  
-	  private int countLastReport = 0; //Some info is only reported every handful of paint calls. Keep a counter.
+//	  private int countLastReport = 0; //Some info is only reported every handful of paint calls. Keep a counter.
 	  
 	  /** Games/sec counter for display on the window. **/
 	  private int gamespersec = 0;
@@ -307,9 +317,8 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		
 	  /** Constructor. Set up as either GL or not, Slave or not. **/
   	  public TreePane(boolean slave){
-  	  	  this.slave = slave;
+  	  	  	this.slave = slave;
 
-  	  	  if(useGL){
   	  		 this.setLayout(new BorderLayout());
   	  		 GLProfile glp = GLProfile.getDefault();
   	  		 GLCapabilities caps = new GLCapabilities(glp);
@@ -337,14 +346,6 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	   	  		  eyePos.x -= 10;
 	   	  		  targetPos.x -= 10;
 	   	  	  }
-  	  	  }else{
-  	  		  //Add listeners to the frame itself if we aren't using openGL
-  	  	  	  addKeyListener(this);
-  	  	  	  addMouseListener(this);
-  	  	  	  addMouseMotionListener(this);
-  	  	  	  addMouseWheelListener(this);
-  	  	  	  
-  	  	  }
 	        
   	  }
   	  
@@ -353,180 +354,15 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
   		  this.slaveMaker = slaveMaker;
   	  }
   	  
+  	  /** Paint for this JPanel pretty much just asks the sub-canvas to paint. Somewhat a relic of the old graphics **/
       public void paintComponent(Graphics g){
-
-    	  if(useGL && !pauseDraw && canvas != null){   
+    	  if(!pauseDraw && canvas != null){   
     		  canvas.display();
-    	  }else{
-    	  if(!pauseDraw){ //Temporarily stop drawing for speed.
-    	   Graphics2D g2 = (Graphics2D) g; //Casting to a graphics 2d object for more control.
-    	   g2.setStroke(new BasicStroke(0.5f));
-    	   
-    	  //Go through and draw all the lines defined.
-    	  if (startDrawing){ //Make sure this exists.
-
-    		  g.setColor(Color.WHITE);
-    		  g.fillRect(0, 0, OptionsHolder.windowWidth,OptionsHolder.windowHeight);
-    		  
-    		  
-    		  //Version for the NON-slave panel. This one uses the nodePosition positions.
-    		  if(!slave){
-	    		  if(focusedNode != null){ //Color the focusedNode red.
-	    			  g.setColor(Color.RED);
-	    			  g.fillRect((int)focusedNode.nodeLocation[0]-5, (int)focusedNode.nodeLocation[1]-5, 10,10);   			  	  
-	    		  }
-	    		  
-	    		  
-		      	for (int i = 0; i<Lines.numLines; i++){
-		      		if(Lines.LineList[i][2] == 0 && Lines.LineList[i][3] == 0){ //If the x2 and y2 are 0, we've come to the end of actual lines.
-		      			break;
-		      		}
-		      		if(!Lines.ColorList[i].equals(Color.BLACK)){
-							g2.setColor(Lines.ColorList[i]);
-					}else{
-						g2.setColor(getDepthColor(Lines.NodeList[i][1].TreeDepth));
-					}
-		      		g2.drawLine(Lines.LineList[i][0], Lines.LineList[i][1], Lines.LineList[i][2], Lines.LineList[i][3]);
-		      		
-	     			if (scoreDisplay && Lines.NodeList[i][1].DeadEnd){
-	
-	     				g2.setColor(getScoreColor(minDistScaling,maxDistScaling,-Lines.NodeList[i][1].rawScore));
-	     				g2.setFont(scaleFont.InterpolateFont(minDistScaling,maxDistScaling,-Lines.NodeList[i][1].rawScore*OptionsHolder.sizeFactor));
-	      				g2.drawString(df.format(Lines.NodeList[i][1].rawScore), (int)Lines.NodeList[i][1].nodeLocation[0], (int)Lines.NodeList[i][1].nodeLocation[1]);
-	      				g2.setColor(Color.BLACK);
-	      			}else if (valDisplay && Lines.NodeList[i][1].DeadEnd){
-	     				if(Lines.NodeList[i][1].value != 0){
-	     					
-	     					g2.setColor(getScoreColor(minValScaling, maxValScaling, Lines.NodeList[i][1].value));
-	 
-		     				g2.setFont(scaleFont.InterpolateFont(maxValScaling,minValScaling,Lines.NodeList[i][1].value*OptionsHolder.sizeFactor));
-		      				g2.drawString(df.format(Lines.NodeList[i][1].value), (int)Lines.NodeList[i][1].nodeLocation[0], (int)Lines.NodeList[i][1].nodeLocation[1]);
-		      				g2.setColor(Color.BLACK);
-	     				}
-	      				
-	      			}
-	     			
-	     			if(Lines.NodeList[i][1].colorOverride != Color.BLACK){
-	     				g.setColor(Lines.NodeList[i][1].colorOverride);
-     					g2.fillOval((int)(Lines.NodeList[i][1].nodeLocation[0]-10*OptionsHolder.sizeFactor), (int)(Lines.NodeList[i][1].nodeLocation[1]-10*OptionsHolder.sizeFactor), (int)(20*OptionsHolder.sizeFactor),(int)(20*OptionsHolder.sizeFactor));
-     				
-	     			}else
-	     			//Draw failure modes by color as dots on the ends of the failed branches
-	     			if (!Lines.NodeList[i][1].TempFullyExplored && Lines.NodeList[i][1].DeadEnd && OptionsHolder.failTypeDisp ){
-	     				if (Lines.NodeList[i][1].FailType == StateHolder.FailMode.BACK){ // Failures -- we fell backwards
-	     					g.setColor(Color.CYAN);
-	     					g2.fillOval((int)(Lines.NodeList[i][1].nodeLocation[0]-5*OptionsHolder.sizeFactor), (int)(Lines.NodeList[i][1].nodeLocation[1]-5*OptionsHolder.sizeFactor), (int)(10*OptionsHolder.sizeFactor),(int)(10*OptionsHolder.sizeFactor));
-	     				}else if(Lines.NodeList[i][1].FailType == StateHolder.FailMode.FRONT){ // Failures -- we fell forward.
-	     					g.setColor(Color.MAGENTA);
-	     					g2.fillOval((int)(Lines.NodeList[i][1].nodeLocation[0]-5*OptionsHolder.sizeFactor), (int)(Lines.NodeList[i][1].nodeLocation[1]-5*OptionsHolder.sizeFactor), (int)(10*OptionsHolder.sizeFactor),(int)(10*OptionsHolder.sizeFactor));
-	     				}
-	     			}
-	     			
-	     			if(Lines.NodeList[i][1].TempFullyExplored && OptionsHolder.failTypeDisp && Lines.NodeList[i][1].NumChildren()==0){ //These are nodes that we've stopped at due to a depth limit, but COULD go further (not failures).
-     					g.setColor(Color.darkGray);
-     					g2.fillOval((int)(Lines.NodeList[i][1].nodeLocation[0]-10*OptionsHolder.sizeFactor), (int)(Lines.NodeList[i][1].nodeLocation[1]-10*OptionsHolder.sizeFactor), (int)(20*OptionsHolder.sizeFactor),(int)(20*OptionsHolder.sizeFactor));
-     				}
-		      		
-		      		if(Lines.LabelOn[i]){ //Draw the label if it's turned on. NOTE: Change nodelist index back to zero for it to only display one action instead of all child node ones. Accidental change that turned out nicely.
-		      			g.setColor(Color.BLACK);
-		      			g.setFont(scaleFont.InterpolateFont(0, 4, OptionsHolder.sizeFactor));
-		      			g.drawString(""+Lines.NodeList[i][1].ControlAction, (int)Lines.NodeList[i][1].nodeLocation[0], (int)Lines.NodeList[i][1].nodeLocation[1]);
-		      		}
-		      	}
-    		  }else{
-	    		  if(focusedNode != null){
-	    			  g.setColor(Color.RED);
-	    			  g.fillRect((int)focusedNode.nodeLocation2[0]-5, (int)focusedNode.nodeLocation2[1]-5, 10,10);   			  	  
-	    		  }
-	    		  
-	    		  
-		      	for (int i = 0; i<Lines.numLines; i++){
-		      		if(Lines.LineList2[i][2] == 0 && Lines.LineList2[i][3] == 0){ //If the x2 and y2 are 0, we've come to the end of actual lines.
-		      			break;
-		      		}
-		      		if(!Lines.ColorList[i].equals(Color.BLACK)){
-							g2.setColor(Lines.ColorList[i]);
-					}else{
-						g2.setColor(getDepthColor(Lines.NodeList[i][1].TreeDepth));
-					}
-		      		g2.drawLine(Lines.LineList2[i][0], Lines.LineList2[i][1], Lines.LineList2[i][2], Lines.LineList2[i][3]);
-		      		
-	     			if (scoreDisplay && Lines.NodeList[i][1].DeadEnd){
-	
-	     				g2.setColor(getScoreColor(minDistScaling,maxDistScaling,-Lines.NodeList[i][1].rawScore));
-	     				g2.setFont(scaleFont.InterpolateFont(minDistScaling,maxDistScaling,-Lines.NodeList[i][1].rawScore*OptionsHolder.sizeFactor));
-	      				g2.drawString(df.format(Lines.NodeList[i][1].rawScore), (int)Lines.NodeList[i][1].nodeLocation2[0], (int)Lines.NodeList[i][1].nodeLocation2[1]);
-	      				g2.setColor(Color.BLACK);
-	      			}else if (valDisplay && Lines.NodeList[i][1].DeadEnd){
-	     				if(Lines.NodeList[i][1].value != 0){
-	     					
-	     					g2.setColor(getScoreColor(minValScaling, maxValScaling, Lines.NodeList[i][1].value));
-	 
-		     				g2.setFont(scaleFont.InterpolateFont(maxValScaling,minValScaling,Lines.NodeList[i][1].value*OptionsHolder.sizeFactor));
-		      				g2.drawString(df.format(Lines.NodeList[i][1].value), (int)Lines.NodeList[i][1].nodeLocation2[0], (int)Lines.NodeList[i][1].nodeLocation2[1]);
-		      				g2.setColor(Color.BLACK);
-	     				}
-	      			}
-		      		
-		      		if(i<Lines.LabelOn.length && Lines.LabelOn[i] && i<Lines.LabelOn.length-1){ //Draw the label if it's turned on. NOTE: Change nodelist index back to zero for it to only display one action instead of all child node ones. Accidental change that turned out nicely.
-		      			g.setColor(Color.BLACK);
-		      			g.setFont(scaleFont.InterpolateFont(0, 4, OptionsHolder.sizeFactor));
-		      			g.drawString(""+Lines.NodeList[i][1].ControlAction, (int)Lines.NodeList[i][1].nodeLocation2[0], (int)Lines.NodeList[i][1].nodeLocation2[1]);
-		      		}
-		      		
-	     			//Draw failure modes by color as dots on the ends of the failed branches
-	     			if (Lines.NodeList[i][1].DeadEnd && OptionsHolder.failTypeDisp){
-	     					if (Lines.NodeList[i][1].FailType == StateHolder.FailMode.BACK){
-	     						g.setColor(Color.CYAN);
-	     						g2.fillOval((int)(Lines.NodeList[i][1].nodeLocation2[0]-5*OptionsHolder.sizeFactorAlt), (int)(Lines.NodeList[i][1].nodeLocation2[1]-5*OptionsHolder.sizeFactorAlt), (int)(10*OptionsHolder.sizeFactorAlt),(int)(10*OptionsHolder.sizeFactor));
-	     					}else if(Lines.NodeList[i][1].FailType == StateHolder.FailMode.FRONT){
-	     						g.setColor(Color.MAGENTA);
-	     						g2.fillOval((int)(Lines.NodeList[i][1].nodeLocation2[0]-5*OptionsHolder.sizeFactorAlt), (int)(Lines.NodeList[i][1].nodeLocation2[1]-5*OptionsHolder.sizeFactorAlt), (int)(10*OptionsHolder.sizeFactorAlt),(int)(10*OptionsHolder.sizeFactorAlt));
-	     					}
-	     			}
-		      	}
-    		  }
-	      	
-
-	  		  //Write the instructions up too:
-	      	if( !slave ){
-		  		  g.setColor(Color.BLACK);
-		  		  g.setFont(smallFont);
-		  		  for (int i = 0; i<instructions.length; i++){
-		  			g.drawString(instructions[instructions.length-1-i], 10, OptionsHolder.windowHeight-i*25-50);
-		  			  
-		  		  }
-	      	} 	
-    	  }  		  
-    	  }
-  		  //Write how many games have been played:
-    	  //note, still displays even when graphics are basically paused.
-    	  if(!slave){ //for a slave panel, we don't want this extra info.
-	  		  g.setColor(Color.WHITE);
-	  		  g.setColor(new Color(1f,1f,1f,1f));
-	  		  g.fillRect(0,0,450,100);
-	  		  g.setColor(Color.BLACK);
-	  		  g.setFont(bigFont);
-	  		  g.drawString(OptionsHolder.gamesPlayed + " Games played", 20, 50);
-	  		  
-	  		  //Draw games/s
-	  		  if(countLastReport>reportEvery){
-	  			  countLastReport = 0; //Reset the counter.
-		  		  currTime = System.currentTimeMillis();
-	  			  gamespersec = (int)((OptionsHolder.gamesPlayed-lastGameNum)*1000./(currTime-lastTime));
-		  		  g.drawString(gamespersec + "  games/s", 30, 90);
-		  		  lastGameNum = OptionsHolder.gamesPlayed;
-		  		  lastTime = currTime;
-	  		  }else{
-	  			  g.drawString(gamespersec + "  games/s", 30, 90);
-	  			  countLastReport++;
-	  		  }
-	       }
     	  }
       }
-      /** Set the LineHolder to pay attention to **/
-      public void setTree(LineHolder Lines){
-      	this.Lines = Lines;
+      /** Pass the list of tree handles to this panel **/
+      public void setTree(ArrayList<TreeHandle> trees){
+      	this.trees = trees;
       }
             
       /** Set the single path viewer so we can queue up selected nodes for path viewing **/
@@ -575,10 +411,6 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 
           return Color.getHSBColor(H, S, B);
       }
-      
-//      
-//      Vector3f debugpt1 = new Vector3f();
-//      Vector3f debugpt2 = new Vector3f();
       
       /** Find a vector which represents the click ray in 3D space. Mostly stolen from my cloth simulator. **/
 	    private Vector3f clickVector(int mouseX, int mouseY){
@@ -665,33 +497,38 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	    }
 	    
 	    /** Take a click vector, find the nearest node to this line. **/
-	    private TrialNode nodeFromRay(Vector3f ClickVec,LineHolder lineList,boolean altFlag){ //Alt flag says whether to use Node location 2 or 1.
+	    private TrialNode nodeFromRay(Vector3f ClickVec,ArrayList<TreeHandle> trees,boolean altFlag){ //Alt flag says whether to use Node location 2 or 1.
 	    	// Determine which point is closest to the clicked ray.
 
 	    	double tanDist;
 	    	double normDistSq;
-//	    	TrialNode chosenPt;
+	    	LineHolder lines;
 	    	
-	    	double SmallestDist = 1000;
-	    	for (int i = 0; i<lineList.NodeList.length; i++){
-	    		//Vector from eye to a vertex.
-	    		Vector3f nodePos = new Vector3f();
-	    		if(altFlag){
-			    	nodePos = new Vector3f(oldToGLScaling*lineList.NodeList[i][1].nodeLocation2[0],oldToGLScaling*lineList.NodeList[i][1].nodeLocation2[1],0); //FIX THIS LATER
-	    		}else{
-			    	nodePos = new Vector3f(oldToGLScaling*lineList.NodeList[i][1].nodeLocation[0],oldToGLScaling*lineList.NodeList[i][1].nodeLocation[1],0); //FIX THIS LATE
-	    		}
+	    	double SmallestDist = Double.MAX_VALUE;
+	    	for(TreeHandle th: trees){ //Loop through all trees
+	    		lines = th.getLines();
+	    		
+		    	for (int i = 0; i<lines.NodeList.length; i++){
+		    		//Vector from eye to a vertex.
+		    		Vector3f nodePos = new Vector3f();
+		    		if(altFlag){
+				    	nodePos = new Vector3f(oldToGLScaling*lines.NodeList[i][1].nodeLocation2[0],oldToGLScaling*lines.NodeList[i][1].nodeLocation2[1],0);
+		    		}else{
+				    	nodePos = new Vector3f(oldToGLScaling*lines.NodeList[i][1].nodeLocation[0],oldToGLScaling*lines.NodeList[i][1].nodeLocation[1],oldToGLScaling*lines.NodeList[i][1].height);
+		    		}
 
-	    		EyeToPoint.sub(nodePos,eyePos);
-	    		
-	    		tanDist = EyeToPoint.dot(ClickVec);
-	    		normDistSq = EyeToPoint.lengthSquared() - tanDist*tanDist;
-	    		
-	    		if (normDistSq < SmallestDist){
-	    			SmallestDist = normDistSq;
-	    			chosenPt = lineList.NodeList[i][1];
-	    		}
+		    		EyeToPoint.sub(nodePos,eyePos);
+		    		
+		    		tanDist = EyeToPoint.dot(ClickVec);
+		    		normDistSq = EyeToPoint.lengthSquared() - tanDist*tanDist;
+		    		
+		    		if (normDistSq < SmallestDist){
+		    			SmallestDist = normDistSq;
+		    			chosenPt = lines.NodeList[i][1];
+		    		}
+		    	}
 	    	}
+
 	    	return chosenPt;
 	    }
 	    
@@ -731,6 +568,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 			eyePos.add(targetPos,distVec);
 
 		}
+		
 		/**User interaction to rotate the camera latitude-ishly. Magnitude of rotation is in radians and may be negative.**/
 		public void rotateLatitude(float magnitude){
 			
@@ -752,40 +590,31 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		}
 
 	    
+		
 	@Override
-	public void mouseClicked(MouseEvent arg0) {	
+	public void mouseClicked(MouseEvent e) {	
 		
 		if(slave){// If slave, search among the alternate node locations in the subview panel.
-			if(useGL){
-				clickVec = clickVector(arg0.getX(), arg0.getY());
-				focusedNode = nodeFromRay(clickVec,Lines,true);
-			}else{
-				focusedNode = Lines.GetNearestNodeAlt(arg0.getX(), arg0.getY());
-			}
+				clickVec = clickVector(e.getX(), e.getY());
+				focusedNode = nodeFromRay(clickVec,trees,true);
 		}else{
 			
-			if(useGL){
-				clickVec = clickVector(arg0.getX(), arg0.getY());
-				focusedNode = nodeFromRay(clickVec,Lines,false);
-			}else{
-				focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
-			}
+			clickVec = clickVector(e.getX(), e.getY());
+			focusedNode = nodeFromRay(clickVec,trees,false);
 			if(slaveMaker != null){ //If we have a slave panel, then change its focus to our focus too
 				slaveMaker.TreePanel.focusedNode = focusedNode;
-			}
-			
-			
+			}	
 		}
 		
-		if (arg0.isAltDown()){ //alt click enables a label on this node
+		if (e.isAltDown()){ //alt click enables a label on this node
 			focusedNode.LabelOn = true;
-		}else if (arg0.isControlDown()){ //Control will hide this node and all its children.
+		}else if (e.isControlDown()){ //Control will hide this node and all its children.
 
 			if(focusedNode !=null && focusedNode.TreeDepth > 1){ //Keeps stupid me from hiding everything in one click.
 				focusedNode.hiddenNode = true;
 				focusedNode.ParentNode.RemoveChild(focusedNode); //Try also just killing it from the tree search too.
 			}
-		}else if (arg0.isMetaDown()){
+		}else if (e.isMetaDown()){
 
 			if (SnapshotPane != null){
 				SnapshotPane.setNode(focusedNode);
@@ -797,64 +626,56 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		}
 	}
 	@Override
-	public void mouseEntered(MouseEvent arg0) {
-		// TODO Auto-generated method stub
+	public void mouseEntered(MouseEvent e) {
+		// Not used.
 		
 	}
 	@Override
-	public void mouseExited(MouseEvent arg0) {
-		// TODO Auto-generated method stub
+	public void mouseExited(MouseEvent e) {
+		// Not used.
 		
 	}
 	@Override
-	public void mousePressed(MouseEvent arg0) {
+	public void mousePressed(MouseEvent e) {
 		mouseTrack = true;
-		mouseX = arg0.getX();
-		mouseY = arg0.getY();
-	if (arg0.getButton() == MouseEvent.BUTTON3){ //Right click moves nodes.
+		mouseX = e.getX();
+		mouseY = e.getY();
+	if (e.getButton() == MouseEvent.BUTTON3){ //Right click moves nodes.
 
 		
 		if(slave){// If slave, search among the alternate node locations in the subview panel.
-			if(useGL){
-				clickVec = clickVector(arg0.getX(), arg0.getY());
-				focusedNode = nodeFromRay(clickVec,Lines,true);
-			}else{
-				focusedNode = Lines.GetNearestNodeAlt(arg0.getX(), arg0.getY());
-			}
+			clickVec = clickVector(e.getX(), e.getY());
+			focusedNode = nodeFromRay(clickVec,trees,true);
 		}else{
-			if(useGL){
-				clickVec = clickVector(arg0.getX(), arg0.getY());
-				focusedNode = nodeFromRay(clickVec,Lines,false);
-			}else{
-				focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
-			}
+			clickVec = clickVector(e.getX(), e.getY());
+			focusedNode = nodeFromRay(clickVec,trees,false);
 		}
 	}
 	
 	}
 	@Override
-	public void mouseReleased(MouseEvent arg0) {
+	public void mouseReleased(MouseEvent e) {
 		mouseTrack = false;
 	}
 	//TODO: change temp vars to something better.
 	@Override
-	public void mouseDragged(MouseEvent arg0){
+	public void mouseDragged(MouseEvent e){
 		//Note: if using old graphics, actually move the point coordinates. if GL, then just move the camera.
-		if (arg0.getButton() == MouseEvent.BUTTON1){ //Left click drags the whole thing.
+		if (e.getButton() == MouseEvent.BUTTON1){ //Left click drags the whole thing.
 			
 			if(useGL){
 				//Find x transformed from front plane coordinates (click) to world camera coordinates
 				eyeToTarget.sub(targetPos,eyePos);
 				Vector3f temp1 = new Vector3f();
 				temp1 = (Vector3f) upVec.clone();
-				temp1.scale((arg0.getY()-mouseY)*oldToGLScaling*glScaling);
+				temp1.scale((e.getY()-mouseY)*oldToGLScaling*glScaling);
 
 				Vector3f temp2 = new Vector3f();
 				
 				//Find y transformed
 				temp2.cross(upVec,eyeToTarget);
 				temp2.normalize();
-				temp2.scale((arg0.getX() - mouseX)*oldToGLScaling*glScaling);
+				temp2.scale((e.getX() - mouseX)*oldToGLScaling*glScaling);
 
 				
 				temp1.add(temp2);
@@ -866,67 +687,49 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 				targetPos.x += temp1.x;
 				targetPos.y += temp1.y;
 				targetPos.z += temp1.z;
-
-//				eyePos.x -= (arg0.getX()-mouseX)*oldToGLScaling*glScaling;
-//				eyePos.y += (arg0.getY() - mouseY)*oldToGLScaling*glScaling; //Old graphics had y= 0 at the top, this doesn't now.
-//				targetPos.x -= (arg0.getX()-mouseX)*oldToGLScaling*glScaling;
-//				targetPos.y += (arg0.getY() - mouseY)*oldToGLScaling*glScaling;
-				
-				
+			
 			}else{
 				if(slave){
-					root.ShiftNodesAlt(arg0.getX()-mouseX, arg0.getY()-mouseY);
-	
+					for (TreeHandle th: trees){
+						th.getRoot().ShiftNodesAlt(e.getX()-mouseX, e.getY()-mouseY);
+					}
 				}else{
-					root.ShiftNodes(arg0.getX()-mouseX, arg0.getY()-mouseY);
+					for (TreeHandle th: trees){
+						th.getRoot().ShiftNodes(e.getX()-mouseX, e.getY()-mouseY);
+					}
 				}
 			}
 			//TODO:
-		}else if (arg0.getButton() == MouseEvent.BUTTON3){ //Right click moves nodes.
+		}else if (e.getButton() == MouseEvent.BUTTON3){ //Right click moves nodes.
 			
 			if(useGL){
-				clickVec = clickVector(arg0.getX(), arg0.getY());
+				clickVec = clickVector(e.getX(), e.getY());
 				Vector3f clickedpt = planePtFromRay(clickVec,0);
 				double clickAngle = -Math.atan2((clickedpt.x-focusedNode.ParentNode.nodeLocation[0]),(clickedpt.y-focusedNode.ParentNode.nodeLocation[1]))+Math.PI/2.;
 				clickAngle -= focusedNode.nodeAngle; //Subtract out the current angle.
 				focusedNode.RotateBranch(clickAngle);
-			}
-			
-//			//Calculate the angle between the click and the parent of the click node.
-//			if(slave){
-//				
-//				double clickAngle = -Math.atan2((arg0.getX()-focusedNode.ParentNode.nodeLocation2[0]),(arg0.getY()-focusedNode.ParentNode.nodeLocation2[1]))+Math.PI/2.;
-//				clickAngle -= focusedNode.nodeAngle2; //Subtract out the current angle.
-//				
-//				focusedNode.RotateBranchAlt(clickAngle);
-//			}else{
-//				
-//				double clickAngle = -Math.atan2((arg0.getX()-focusedNode.ParentNode.nodeLocation[0]),(arg0.getY()-focusedNode.ParentNode.nodeLocation[1]))+Math.PI/2.;
-//				clickAngle -= focusedNode.nodeAngle; //Subtract out the current angle.
-//				
-//				focusedNode.RotateBranch(clickAngle);
-//			}	
+			}	
 		}
-			mouseX = arg0.getX();
-			mouseY = arg0.getY();
+			mouseX = e.getX();
+			mouseY = e.getY();
 	}
 	@Override
-	public void mouseMoved(MouseEvent arg0) {
+	public void mouseMoved(MouseEvent e) {
 		// TODO Auto-generated method stub
 		
 	}
 
 	@Override
 	/** This zooms in and out. Also changes the size factor in OptionsHolder to keep things consistent. **/
-	public synchronized void mouseWheelMoved(MouseWheelEvent arg0){
+	public synchronized void mouseWheelMoved(MouseWheelEvent e){
 	
 	
-	if (arg0.getWheelRotation()<0){ //Negative mouse direction -> zoom in.
-		if(arg0.isAltDown()){
-			if(slave){// If slave, search among the alternate node locations in the subview panel.
-				focusedNode = Lines.GetNearestNodeAlt(arg0.getX(), arg0.getY());
+	if (e.getWheelRotation()<0){ //Negative mouse direction -> zoom in.
+		if(e.isAltDown()){
+			if(slave){// If slave, search among the alternate node locations in the subview panel. TODO:
+				focusedNode = Lines.GetNearestNodeAlt(e.getX(), e.getY());
 			}else{
-				focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
+				focusedNode = Lines.GetNearestNode(e.getX(), e.getY());
 			}
 			if(slave){
 				focusedNode.SpaceBranchAlt(0.1);
@@ -938,11 +741,6 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		}else{
 			if(useGL){
 				 eyeToTarget.sub(targetPos, eyePos); //Find vector from the camera eye to the target pos
-//				 if(eyeToTarget.dot(eyeToTarget) != 0){ //catch div by 0 in the normalize.
-//					 eyeToTarget.normalize();
-//				 }else{
-//					 eyeToTarget.set(0,0,1);
-//				 }
 				 glScaling*=0.9;
 				 eyeToTarget.scale(-0.9f);
 				 eyePos.add(eyeToTarget, targetPos);
@@ -951,11 +749,11 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 			}
 		}
 	}else{
-		if(arg0.isAltDown()){
+		if(e.isAltDown()){
 			if(slave){// If slave, search among the alternate node locations in the subview panel.
-				focusedNode = Lines.GetNearestNodeAlt(arg0.getX(), arg0.getY());
+				focusedNode = Lines.GetNearestNodeAlt(e.getX(), e.getY());
 			}else{
-				focusedNode = Lines.GetNearestNode(arg0.getX(), arg0.getY());
+				focusedNode = Lines.GetNearestNode(e.getX(), e.getY());
 			}
 			if(slave){
 				focusedNode.SpaceBranchAlt(-0.1);
@@ -1080,12 +878,12 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	}
 	
 	@Override
-	public void keyPressed(KeyEvent arg0) {
+	public void keyPressed(KeyEvent e) {
 		
 		//Navigating the focused node tree
-		   int keyCode = arg0.getKeyCode();
+		   int keyCode = e.getKeyCode();
 
-		    if(arg0.isMetaDown() && useGL){ //if we're using GL, then we'll move the camera with mac key + arrows
+		    if(e.isMetaDown() && useGL){ //if we're using GL, then we'll move the camera with mac key + arrows
 	        	eyeToTarget.sub(targetPos,eyePos); //if we're rotating the camera, we'll need to update the eye to target vector.
 		    	switch( keyCode ) { 
 		        case KeyEvent.VK_UP: //Go out the branches of the tree
@@ -1119,9 +917,9 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		    	
 		    }
 		    
-		switch(arg0.getKeyChar()){
+		switch(e.getKeyChar()){
 		case 's': // toggle the score text at the end of all branches
-			if (arg0.isMetaDown()){
+			if (e.isMetaDown()){
 				valDisplay = !valDisplay;
 				scoreDisplay = false;
 			}else{
@@ -1136,14 +934,14 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	}
 
 	@Override
-	public void keyReleased(KeyEvent arg0) {
+	public void keyReleased(KeyEvent e) {
 		// TODO Auto-generated method stub
 		
 	}
 
 	@Override
-	public void keyTyped(KeyEvent arg0) {
-		switch(arg0.getKeyChar()){
+	public void keyTyped(KeyEvent e) {
+		switch(e.getKeyChar()){
 			case 't': // explore specific branch by setting an override node.
 				//Uncolor the previous subtree, if it exists.
 				if(OverrideNode != null){
@@ -1314,7 +1112,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	 						gl.glColor3fv(getScoreColor(minValScaling,maxValScaling,Lines.NodeList[i][1].value).getColorComponents(null),0);
 
 //		     				g2.setFont(scaleFont.InterpolateFont(maxValScaling,minValScaling,Lines.NodeList[i][1].value*OptionsHolder.sizeFactor));
-		      				drawString(df.format(Lines.NodeList[i][1].value),  Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[1],gl,glut);
+		      				drawString(df.format(Lines.NodeList[i][1].value),  oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[0], oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[1],gl,glut);
 						}
 					}
 						
@@ -1325,7 +1123,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 				gl.glBegin(GL2.GL_POINTS);
 	    		  if(focusedNode != null){ //Color the focusedNode red.
 	    			  gl.glColor3f(1, 0, 0);
-					  gl.glVertex3d(Constants.oldToGLScaling*focusedNode.nodeLocation2[0], Constants.oldToGLScaling*focusedNode.nodeLocation2[1], 0);		  	  
+					  gl.glVertex3d(oldToGLScaling*focusedNode.nodeLocation2[0], oldToGLScaling*focusedNode.nodeLocation2[1], oldToGLScaling*focusedNode.height);		  	  
 	    		  }
 	    		  gl.glEnd();
 				
@@ -1339,10 +1137,10 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 						if (!Lines.NodeList[i][1].TempFullyExplored && Lines.NodeList[i][1].DeadEnd && OptionsHolder.failTypeDisp ){
 							if (Lines.NodeList[i][1].FailType == StateHolder.FailMode.BACK){ // Failures -- we fell backwards
 								gl.glColor3f(0, 1, 1);
-								gl.glVertex3d(oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[1], 0);
+								gl.glVertex3d(oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[0],oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[1], oldToGLScaling*Lines.NodeList[i][1].height);
 							}else if(Lines.NodeList[i][1].FailType == StateHolder.FailMode.FRONT){ // Failures -- we fell forward.
 								gl.glColor3f(1, 0, 1);
-								gl.glVertex3d(Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[1], 0);
+								gl.glVertex3d(oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[0], oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[1], oldToGLScaling*Lines.NodeList[i][1].height);
 
 							}
 						}
@@ -1367,13 +1165,12 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 
 						gl.glColor3fv(getDepthColor(Lines.NodeList[i][1].TreeDepth).getRGBColorComponents(null),0);
 					}
-		      		gl.glVertex3d(Constants.oldToGLScaling*Lines.LineList2[i][0], oldToGLScaling*Lines.LineList2[i][1],0);
-		      		gl.glVertex3d(Constants.oldToGLScaling*Lines.LineList2[i][2], Constants.oldToGLScaling*Lines.LineList2[i][3],0);
+		      		gl.glVertex3d(Constants.oldToGLScaling*Lines.LineList2[i][0], oldToGLScaling*Lines.LineList2[i][1], oldToGLScaling*Lines.NodeList[i][1].height);
+		      		gl.glVertex3d(Constants.oldToGLScaling*Lines.LineList2[i][2], Constants.oldToGLScaling*Lines.LineList2[i][3], oldToGLScaling*Lines.NodeList[i][1].height);
 				}
 			}else{ //NOT the slave panel.
 				
 				{//for (int u = 0; u<25; u= u+5){
-				int u = 0;
 				
 				//Display text on the tree for value/score stuff if s and meta-s are pressed. TODO: figure out text size scaling in GLUT
 				if (scoreDisplay){
@@ -1402,7 +1199,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 				gl.glBegin(GL2.GL_POINTS);
 	    		  if(focusedNode != null){ //Color the focusedNode red.
 	    			  gl.glColor3f(1, 0, 0);
-					  gl.glVertex3d(Constants.oldToGLScaling*focusedNode.nodeLocation[0], Constants.oldToGLScaling*focusedNode.nodeLocation[1], u);		  	  
+					  gl.glVertex3d(Constants.oldToGLScaling*focusedNode.nodeLocation[0], Constants.oldToGLScaling*focusedNode.nodeLocation[1],  oldToGLScaling*focusedNode.height);		  	  
 	    		  }
 	    		  gl.glEnd();
 	    		  
@@ -1418,16 +1215,16 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 						if (!Lines.NodeList[i][1].TempFullyExplored && Lines.NodeList[i][1].DeadEnd && OptionsHolder.failTypeDisp ){
 							if (Lines.NodeList[i][1].FailType == StateHolder.FailMode.BACK){ // Failures -- we fell backwards
 								gl.glColor3f(0, 1, 1);
-								gl.glVertex3d(Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[1], u);
+								gl.glVertex3d(Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[1],  oldToGLScaling*Lines.NodeList[i][1].height);
 							}else if(Lines.NodeList[i][1].FailType == StateHolder.FailMode.FRONT){ // Failures -- we fell forward.
 								gl.glColor3f(1, 0, 1);
-								gl.glVertex3d(Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[1], u);
+								gl.glVertex3d(Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[1],  oldToGLScaling*Lines.NodeList[i][1].height);
 
 							}
 						}
 		     			if(Lines.NodeList[i][1].TempFullyExplored && OptionsHolder.failTypeDisp && Lines.NodeList[i][1].NumChildren()==0){ //These are nodes that we've stopped at due to a depth limit, but COULD go further (not failures).
 		     				gl.glColor3f(0.9f, 0.9f, 0.9f);
-	     					gl.glVertex3d(Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[1], u);	 
+	     					gl.glVertex3d(Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[0], Constants.oldToGLScaling*Lines.NodeList[i][1].nodeLocation[1],  oldToGLScaling*Lines.NodeList[i][1].height);	 
 					
 		     			}
 					}
@@ -1449,8 +1246,8 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 					}else{						
 						gl.glColor3fv(getDepthColor(Lines.NodeList[i][1].TreeDepth).getRGBColorComponents(null),0);
 					}
-		      		gl.glVertex3d(Constants.oldToGLScaling*Lines.LineList[i][0], Constants.oldToGLScaling*Lines.LineList[i][1],u);
-		      		gl.glVertex3d(Constants.oldToGLScaling*Lines.LineList[i][2], Constants.oldToGLScaling*Lines.LineList[i][3],u);
+		      		gl.glVertex3d(Constants.oldToGLScaling*Lines.LineList[i][0], Constants.oldToGLScaling*Lines.LineList[i][1], oldToGLScaling*Lines.NodeList[i][1].height);
+		      		gl.glVertex3d(Constants.oldToGLScaling*Lines.LineList[i][2], Constants.oldToGLScaling*Lines.LineList[i][3], oldToGLScaling*Lines.NodeList[i][1].height);
 				}
 
 			}
@@ -1494,7 +1291,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 
 	
 	@Override
-	public void dispose(GLAutoDrawable arg0) {
+	public void dispose(GLAutoDrawable e) {
 		// TODO Auto-generated method stub
 		
 	}

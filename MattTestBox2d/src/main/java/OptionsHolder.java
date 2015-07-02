@@ -21,10 +21,6 @@ public class OptionsHolder {
 	public static boolean DataToFile = false;
 	public static boolean KeepStates = true; //Do we record the state at every node. (performance issue?)
 	
-	/** When manipulating the tree (i.e. zooming) do we update instantly or accumulate for awhile first (only for old graphics)**/
-	public static boolean delayTreeMoves = true;
-	
-	
 	/* PHYSICS SETTINGS */
 	/** Physics timestep **/
 	public static float timestep = 0.04f;

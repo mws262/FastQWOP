@@ -126,6 +126,10 @@ class SnapshotPane extends JPanel{
 	float flipud = 1f;
 	float fliplr = 1f;
 	
+	
+	public int periodicLength = 4;
+	public int prefixLength = 8;
+	
 	int headpos = 0;
 	TrialNode focusNode;
 	TrialNode prevNode;
@@ -161,7 +165,7 @@ class SnapshotPane extends JPanel{
 
 
 			//If we've reached the end of our candidate periodic path, then we also want to display the state before the periodic portion.
-			if(focusNode.TreeDepth == OptionsHolder.prefixLength + OptionsHolder.periodicLength){
+			if(focusNode.TreeDepth == prefixLength + periodicLength){
 				prevNode = focusNode.ParentNode.ParentNode.ParentNode.ParentNode;
 			}else{
 				prevNode = null;
@@ -170,10 +174,10 @@ class SnapshotPane extends JPanel{
 			prefixLabel = "";
 			deviationLabel.clear();
 			
-			for (int i = 0; i<OptionsHolder.prefixLength; i++){
+			for (int i = 0; i<prefixLength; i++){
 				if (i>actionSequence.length-1) break;
 				String divider = ", ";
-				if (i< OptionsHolder.prefixLength-1 && i < actionSequence.length-1){
+				if (i< prefixLength-1 && i < actionSequence.length-1){
 					if(actionSequence[i+1]<10){
 						divider += "  "; //If it's a single digit number, then add an extra space to make things even out.
 					}
@@ -183,10 +187,10 @@ class SnapshotPane extends JPanel{
 //					prefixLabel += (actionSequence[OptionsHolder.prefixLength-1] + " "); //No trailing comma on this one.
 //				}
 			}
-			for (int i = OptionsHolder.prefixLength; i<OptionsHolder.prefixLength+OptionsHolder.periodicLength; i++){
+			for (int i = prefixLength; i<prefixLength+periodicLength; i++){
 				if (i>actionSequence.length-1) break;
 				String divider = ", ";
-				if (i< OptionsHolder.prefixLength+OptionsHolder.periodicLength-1 && i < actionSequence.length-1){
+				if (i< prefixLength+periodicLength-1 && i < actionSequence.length-1){
 					if (actionSequence[i+1]<10){
 						divider += "  "; //If it's a single digit number, then add an extra space to make things even out.
 					}
@@ -195,7 +199,7 @@ class SnapshotPane extends JPanel{
 			}
 			int count = 0;
 			String devElement = "";
-			for (int i = OptionsHolder.prefixLength + OptionsHolder.periodicLength; i<actionSequence.length; i++){
+			for (int i = prefixLength + periodicLength; i<actionSequence.length; i++){
 //				if (i>=actionSequence.length-1) break;
 				String divider = ", ";
 				if (i< actionSequence.length-1){
@@ -205,7 +209,7 @@ class SnapshotPane extends JPanel{
 				}
 				devElement += ( actionSequence[i] + divider );
 				count++;
-				if(count == OptionsHolder.periodicLength || i == actionSequence.length-1){ // add each periodic+deviation set as a separate string in the arraylist.
+				if(count == periodicLength || i == actionSequence.length-1){ // add each periodic+deviation set as a separate string in the arraylist.
 					deviationLabel.add(devElement);
 					devElement = "";
 					count = 0;
@@ -269,9 +273,9 @@ class SnapshotPane extends JPanel{
     		//If we have a node from before the periodic part, then loop back to display it with a ghosted color.
     		if (prevNode != null){
     			g.setFont(bigFont);
-    			g.drawString("After periodic (" + (OptionsHolder.prefixLength+OptionsHolder.periodicLength) + " actions in)",100,700);
+    			g.drawString("After periodic (" + (prefixLength+periodicLength) + " actions in)",100,700);
     			g.setColor(ghostRunner);
-    			g.drawString("Before periodic (" + OptionsHolder.prefixLength + " actions in)",100,720);
+    			g.drawString("Before periodic (" + prefixLength + " actions in)",100,720);
     			displayingNode = prevNode;
     			count++;
     		}else{

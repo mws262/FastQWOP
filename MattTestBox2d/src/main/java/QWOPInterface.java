@@ -27,8 +27,8 @@ public class QWOPInterface {
 	public int stepsInRun = 0; //Always counts up until a game reset. Helps ensure we know when we're doing something periodic.
 	
 	public boolean repeatSequence = false;
-	public int prefixLength = OptionsHolder.prefixLength; //How many elements lead up to the repeated portion.
-	public int periodicLength = OptionsHolder.periodicLength; // How many elements are the repeated portion.
+	public int prefixLength = 0; //How many elements lead up to the repeated portion.
+	public int periodicLength = 0; // How many elements are the repeated portion.
 	
 	public boolean visOn = false;
 	
@@ -135,8 +135,10 @@ public class QWOPInterface {
 		return cost;
 	}
 	
-	private void DoPeriodic() throws InterruptedException{
+	private void DoPeriodic(int prefixLength, int periodicLength) throws InterruptedException{
 		int[] subsequence = new int[periodicLength];
+		this.prefixLength = prefixLength;
+		this.periodicLength = periodicLength;
 		subsequence = Arrays.copyOfRange(currentSequence, prefixLength-1, periodicLength+prefixLength-1);
 //		System.out.println(subsequence.length);
 		while(!failFlag){
@@ -238,7 +240,7 @@ public class QWOPInterface {
 		currentIndex++;
 		stepsInRun += delay;
 		if(repeatSequence && (currentIndex == periodicLength + prefixLength)){
-			DoPeriodic();
+			DoPeriodic(prefixLength,periodicLength);
 		}
 		return Cost(); //Return the cost associated with the new position.
 	}

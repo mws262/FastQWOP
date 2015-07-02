@@ -10,34 +10,74 @@ public class ExhaustiveQwop {
 	
 	
 	public static TrialNode RootNode;
-	private static int depth = OptionsHolder.treeDepth;
+	private static int depth;
 	
-	public static QWOPInterface QWOPHandler;
+	public static QWOPInterface QWOPHandler = new QWOPInterface();
 	
 	private final static Random rand = new Random();
 	
 	public static ArrayList<Float> DistHolder = new ArrayList<Float>(); //keep a list of all the costs
 	public static ArrayList<Float> ValHolder = new ArrayList<Float>(); //keep a list of all the costs
 
-	
+	public DataGrabber saveInfo;
+	public VisMaster VisRoot;
 	private static SinglePathViewer SpecificViewer;
+	private Scheduler Every8;
+	private Scheduler EveryEnd;
 	
-	public ExhaustiveQwop() {
-		// TODO Auto-generated constructor stub
+	private static TreeParameters tp; //The new version of OptionsHolder for parameters we might wish to change between different trees.
+	public ExhaustiveQwop() throws SecurityException, IllegalArgumentException, NoSuchFieldException, IllegalAccessException {
+		// Node visualization stuff
+		saveInfo = new DataGrabber();
+		saveInfo.setInterval(50);
+		Every8 = new Scheduler(); //This scheduler gets incremented every time we find a path that makes it out to 8 without falling.
+		Every8.addTask(saveInfo);
+		
+		VisRoot = new VisMaster(QWOPHandler,RootNode,saveInfo,SpecificViewer);
+		EveryEnd = new Scheduler(); //This scheduler gets incremented every time we fail.
+		VisRoot.setInterval(1);
+		VisRoot.TreeMaker.setInterval(100);
+		VisRoot.TreeMaker.DistHolder = DistHolder; //Now the treemaker has a reference to all the value and distance numbers for scaling purposes.
+		VisRoot.TreeMaker.ValHolder = ValHolder;
+
+		VisRoot.DataMaker.setInterval(1000);
+		
+		EveryEnd.addTask(VisRoot);
+		EveryEnd.addTask(VisRoot.TreeMaker);
+		EveryEnd.addTask(VisRoot.SelectTreeMaker);
+		EveryEnd.addTask(VisRoot.DataMaker);
+		EveryEnd.addTask(SpecificViewer); //Every end of the path, see if we've queued up any specific paths to view by hand.
+		
+		Scheduler EveryPhys = new Scheduler();
+		VisRoot.RunMaker.setInterval(1);
+		EveryPhys.addTask(VisRoot.RunMaker);
+		QWOPHandler.addScheduler(EveryPhys);
+		//Give the specific run viewer access to the physics engine and game.
+		SpecificViewer = new SinglePathViewer(QWOPHandler);
+		
+
+		//Hackish way of making sure that the specific run viewer has access to the Runner pane in the tabs.
+		SpecificViewer.runPane = VisRoot.RunMaker;
+
+		
 	}
 	
-	public static void RunGame() throws SecurityException, IllegalArgumentException, NoSuchFieldException, IllegalAccessException{
+	public void RunGame(TreeParameters treeparams) throws SecurityException, IllegalArgumentException, NoSuchFieldException, IllegalAccessException{
+
+		//Parameters specific to the tree we're currently running.
+		tp = treeparams;
+		depth = tp.treeDepth;
 		
-		if(OptionsHolder.limitDepth && OptionsHolder.stochasticDepth){
+		if(tp.limitDepth && tp.stochasticDepth){
 			throw new RuntimeException("Can't both limit depth and do stochastic depth. Change this in the options holder");
 		}
 		boolean finished = false;
 		
-		//Start the QWOP handler.
-		QWOPHandler = new QWOPInterface();
+//		//Start the QWOP handler.
+//		QWOPHandler = new QWOPInterface();
 		
 		//Create the root node.
-		RootNode =  new TrialNode();
+		RootNode =  new TrialNode(tp);
 		TrialNode CurrentNode;
 		TrialNode NextNode;
 		float currentRecord = 0;
@@ -46,7 +86,7 @@ public class ExhaustiveQwop {
 		
 		long searchspace = 1;
 		for (int i = 0; i<depth; i++){
-			searchspace *= TrialNode.ActionList[i%(TrialNode.ActionList.length)].length;
+			searchspace *= tp.ActionList[i%(tp.ActionList.length)].length;
 		}
 //		System.out.println("This will take a max of " + searchspace + "  evaluations assuming no failures.");
 
@@ -70,46 +110,23 @@ public class ExhaustiveQwop {
 		float LeastError = Float.MAX_VALUE;
 		float NewError = Float.MAX_VALUE;
 		
-		//Give the specific run viewer access to the physics engine and game.
-		SpecificViewer = new SinglePathViewer(QWOPHandler);
-		
-		// Node visualization stuff
-		DataGrabber saveInfo = new DataGrabber(); //Argument is how many times we get to 8th level do we have between file writes.
-		saveInfo.setInterval(50);
-		Scheduler Every8 = new Scheduler(); //This scheduler gets incremented every time we find a path that makes it out to 8 without falling.
-		Every8.addTask(saveInfo);
-		
-		VisMaster VisRoot = new VisMaster(QWOPHandler,RootNode,saveInfo,SpecificViewer);
-		Scheduler EveryEnd = new Scheduler(); //This scheduler gets incremented every time we fail.
-		VisRoot.setInterval(1);
-		VisRoot.TreeMaker.setInterval(100);
-		VisRoot.TreeMaker.DistHolder = DistHolder; //Now the treemaker has a reference to all the value and distance numbers for scaling purposes.
-		VisRoot.TreeMaker.ValHolder = ValHolder;
 
-		VisRoot.DataMaker.setInterval(1000);
-		
-		EveryEnd.addTask(VisRoot);
-		EveryEnd.addTask(VisRoot.TreeMaker);
-		EveryEnd.addTask(VisRoot.SelectTreeMaker);
-		EveryEnd.addTask(VisRoot.DataMaker);
-		EveryEnd.addTask(SpecificViewer); //Every end of the path, see if we've queued up any specific paths to view by hand.
-		
-		Scheduler EveryPhys = new Scheduler();
-		VisRoot.RunMaker.setInterval(1);
-		EveryPhys.addTask(VisRoot.RunMaker);
-		QWOPHandler.addScheduler(EveryPhys);
-		
-		//Hackish way of making sure that the specific run viewer has access to the Runner pane in the tabs.
-		SpecificViewer.runPane = VisRoot.RunMaker;
-		
-		
 		//Entity which holds new nodes at the end of paths for ranking purposes. Mainly used when we're doing the weird MPC-ish thing.
 		GoodNodes nodeRankHolder = new GoodNodes();
 		TrialNode currentRoot = RootNode;
 		ArrayList<NodeScorer> potentialPaths = new ArrayList<NodeScorer>();
 		int sampleCount = 0; //used for counting stochastic depth search version.
-		while (!finished){
-
+		int tempcounter = 0;
+		
+		VisRoot.RunMaker.RunPanel.periodicLength = tp.periodicLength; // Also very hackish way of making the text formatting correct. the formatter must know prefix and periodic lengths.
+		VisRoot.RunMaker.RunPanel.prefixLength = tp.prefixLength;
+		SpecificViewer.periodicLength = tp.periodicLength;
+		SpecificViewer.prefixLength = tp.prefixLength;
+		VisRoot.SnapshotMaker.SnapshotPanel.prefixLength = tp.prefixLength;
+		VisRoot.SnapshotMaker.SnapshotPanel.periodicLength = tp.periodicLength;
+		
+		while (tempcounter<1000){//!finished){
+tempcounter++;
 			
 			//NOTE TO SELF -- NOW ADD SOMETHING WHICH SHIFts US DOWN THE TREE ONE SPOT AND MAKES THAT THE ROOT.
 			/* If last time we failed, figure out the last good point we want to explore from and come up with the sequence of actions to get there */
@@ -117,7 +134,7 @@ public class ExhaustiveQwop {
 			/**
 			 * Decide a path to go down and test an action onward
 			 */
-			if (currentRoot.TempFullyExplored && !currentRoot.FullyExplored && OptionsHolder.limitDepth){ //We've temp fully explored this branch. We go in one depth layer and do again for the best ones if we're doing this kind of exploration.
+			if (currentRoot.TempFullyExplored && !currentRoot.FullyExplored && tp.limitDepth){ //We've temp fully explored this branch. We go in one depth layer and do again for the best ones if we're doing this kind of exploration.
 				System.out.println("Finished tree with root depth of " + currentRoot.TreeDepth + ". Going down 1.");
 				RootNode.RemoveTempExploredFlag(); // Get rid of all the temporarily explored flags here and all branches down.
 				currentRootDepth++; // Increase our fake root depth for purposes of bookkeeping
@@ -147,7 +164,7 @@ public class ExhaustiveQwop {
 				VisRoot.TreeMaker.TreePanel.setOverride(currentRoot);
 				
 				nodeRankHolder.clearAll();
-			}else if(currentRoot.FullyExplored && OptionsHolder.limitDepth){
+			}else if(currentRoot.FullyExplored && tp.limitDepth){
 				RootNode.RemoveTempExploredFlag(); // Get rid of all the temporarily explored flags here and all branches down.
 
 				while(currentRoot.FullyExplored && !currentRoot.equals(RootNode)){
@@ -199,10 +216,10 @@ public class ExhaustiveQwop {
 					NextNode.CaptureState(QWOPHandler);
 				}
 				//Once we get past the prefix steps, we want to back up the state because we're looking for a set of [periodicset] parameters which results in something reasonably close to periodic.
-				if(NextNode.TreeDepth == OptionsHolder.prefixLength){
+				if(NextNode.TreeDepth == tp.prefixLength){
 					BeginningState.CaptureState();
 					
-				}else if(NextNode.TreeDepth == OptionsHolder.prefixLength + OptionsHolder.periodicLength){ //The end of the periodic part
+				}else if(NextNode.TreeDepth == tp.prefixLength + tp.periodicLength){ //The end of the periodic part
 					EndState.CaptureState();
 					
 					NewError = EndState.Compare(BeginningState);
@@ -260,7 +277,7 @@ public class ExhaustiveQwop {
 			 */
 			// We also fail based on the dude's state:
 			failed = QWOPHandler.CheckFailure();// || (OptionsHolder.limitDepth && NextNode.TreeDepth == OptionsHolder.treeDepth);
-			reachedEndLim = (OptionsHolder.limitDepth && (NextNode.TreeDepth - currentRootDepth) == OptionsHolder.treeDepth);
+			reachedEndLim = (tp.limitDepth && (NextNode.TreeDepth - currentRootDepth) == tp.treeDepth);
 			/* Handle Failure or move down the tree if successful */
 			
 
@@ -277,7 +294,7 @@ public class ExhaustiveQwop {
 				}
 				
 				//If we are limiting the depth, it would be nice to keep a sortable holder for scores and such.
-				if (OptionsHolder.limitDepth || OptionsHolder.stochasticDepth){
+				if (tp.limitDepth || tp.stochasticDepth){
 					nodeRankHolder.passNew(NextNode,currentRootDepth+1); //give this node AND the depth we would go back to if we picked this node. This lets us check if that one is fully explored or not.
 				}
 				
@@ -297,7 +314,7 @@ public class ExhaustiveQwop {
 				if (verbose){ //Don't bother unless we're spitting out this diagnostic info.
 					int removedsearchspace = 1;
 					for (int i = NextNode.TreeDepth; i<depth; i++){
-						removedsearchspace *= TrialNode.ActionList[i%(TrialNode.ActionList.length)].length;
+						removedsearchspace *= tp.ActionList[i%(tp.ActionList.length)].length;
 					}
 					searchspace -= (removedsearchspace-1); //keep an extra one for the node we're at.
 				}
@@ -308,14 +325,14 @@ public class ExhaustiveQwop {
 				/*
 				 * Stochastic depth stuff
 				 */
-				if(OptionsHolder.stochasticDepth){
+				if(tp.stochasticDepth){
 					sampleCount++;
 					TrialNode oldroot = currentRoot;
 					TrialNode selectedEnd;
-					int sampleLimit = OptionsHolder.sampleCount-(currentRoot.TreeDepth*4);
+					int sampleLimit = tp.sampleCount-(currentRoot.TreeDepth*4);
 					if (sampleLimit<10) sampleLimit = 10; //Ensure that we always sample at least 10 before moving on.
 					if(sampleCount>sampleLimit || currentRoot.FullyExplored){
-						currentRootDepth = (currentRootDepth+OptionsHolder.forwardJump);
+						currentRootDepth = (currentRootDepth+tp.forwardJump);
 						sampleCount = 0;
 						ArrayList<NodeScorer> topfew = nodeRankHolder.getFilteredTopX(currentRoot,20);
 					
@@ -338,13 +355,13 @@ public class ExhaustiveQwop {
 									potentialPaths.add(topfew.get(i));
 									topfew.get(i).getNode().colorOverride = Color.green;
 									goodptcount++;
-									if(goodptcount >OptionsHolder.multiPointCount){
+									if(goodptcount >tp.multiPointCount){
 										break;
 									}
 								}
 							}
 							//Trim down the potentialPaths here
-							if(OptionsHolder.trimSimilar){
+							if(tp.trimSimilar){
 							for (int j = 0; j<potentialPaths.size()-1; j++){
 								for (int k = j+1; k<potentialPaths.size(); k++){
 									
@@ -375,10 +392,10 @@ public class ExhaustiveQwop {
 							}
 
 							NodeScorer end = potentialPaths.get(0);
-							if(!OptionsHolder.multiSelection){
+							if(!tp.multiSelection){
 								Collections.sort(potentialPaths);
 								end = potentialPaths.get(0);
-							}else if(OptionsHolder.weightedSelection){
+							}else if(tp.weightedSelection){
 								//Find the total score of all saved paths so we can do a random, weighted selection.
 								double totalScore = 0;
 								double offset = 0;
@@ -407,11 +424,11 @@ public class ExhaustiveQwop {
 
 							
 							selectedEnd = end.getNode();
-							currentRootDepth = selectedEnd.TreeDepth - OptionsHolder.stochasticHorizon;
+							currentRootDepth = selectedEnd.TreeDepth - tp.stochasticHorizon;
 							if(currentRootDepth < 2) currentRootDepth = 0;
 							//System.out.println(currentRootDepth);
 							currentRoot = end.getUpstream(currentRootDepth);
-							if(selectedEnd.TreeDepth-currentRoot.TreeDepth<OptionsHolder.stochasticHorizon){
+							if(selectedEnd.TreeDepth-currentRoot.TreeDepth<tp.stochasticHorizon){
 								System.out.println("Too close to the end. Using same as old root node.");
 								currentRoot = oldroot;
 							}
@@ -420,7 +437,7 @@ public class ExhaustiveQwop {
 
 						if(currentRoot.FullyExplored){
 							while(currentRoot.FullyExplored && !currentRoot.equals(RootNode)){
-								for (int n = 0; n<OptionsHolder.backwardJump; n++){
+								for (int n = 0; n<tp.backwardJump; n++){
 									currentRoot = currentRoot.ParentNode;
 								}	
 							}
@@ -447,7 +464,7 @@ public class ExhaustiveQwop {
 							VisRoot.TreeMaker.OverrideNode.ColorChildren(Color.BLACK);
 						
 						}
-				}else if(OptionsHolder.marchUp){
+				}else if(tp.marchUp){
 					//This method marches BACK UP the tree until we find an unexplored node to try.
 					while (ExploredFlag){ //Keep marching up the layers until we find one that isn't fully explored
 		

@@ -32,6 +32,7 @@ public class RunnerPaneMaker implements Schedulable,TabbedPaneActivator{
 	private World world;
 	
 	public RunnerPane RunPanel;
+
 	
 	public boolean disable = true;
 	
@@ -154,6 +155,9 @@ class RunnerPane extends JPanel implements KeyListener{
 	float fliplr = 1f;
 	
 	
+	public int prefixLength = 8;
+	public int periodicLength = 4;
+	
 	//Override for manual control parameters:
 	boolean manualControl = false;
 	boolean Q = false;
@@ -234,12 +238,12 @@ class RunnerPane extends JPanel implements KeyListener{
 		//This mess adds underlines under the currently executing action.
 		if(prefixLabel != ""){
 			int index = QWOPHandler.currentIndex;
-			if (index < OptionsHolder.prefixLength){
+			if (index < prefixLength){
 				g.drawLine(index*30, vertTextAnchor + vertTextSpacing+1, 25+index*30, vertTextAnchor + vertTextSpacing+1);
 				g.drawLine(index*30, vertTextAnchor + vertTextSpacing+2, 25+index*30, vertTextAnchor + vertTextSpacing+2);
 			}else{
 				int depth = index/4;
-				index = (index-(OptionsHolder.prefixLength))%4;
+				index = (index-(prefixLength))%4;
 				g.drawLine(index*30, vertTextAnchor + depth*vertTextSpacing+1, 25+index*30, vertTextAnchor + depth*vertTextSpacing+1);
 				g.drawLine(index*30, vertTextAnchor + depth*vertTextSpacing+2, 25+index*30, vertTextAnchor + depth*vertTextSpacing+2);
 			}
