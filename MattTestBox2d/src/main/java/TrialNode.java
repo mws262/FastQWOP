@@ -285,9 +285,8 @@ public class TrialNode {
 	public LineHolder GetNodeLines(LineHolder lines){ //Takes the existing line list and appends some more. Passes it then further down.
 		
 		for (int i = 0; i<ChildNodes.size(); i++){//Iterate through all existing children and add lines from this node to those children.
-			//If the next node is a dead end, give this segment a color
 			if(ChildNodes.get(i).DeadEnd){
-				lines.AddLine(this, ChildNodes.get(i),1); //Add a line between this node and all the existing children.
+				lines.AddLine(this, ChildNodes.get(i)); //Add a line between this node and all the existing children.
 
 			}else if(ChildNodes.get(i).hiddenNode){
 			 //Do nothing!	

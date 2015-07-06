@@ -5,6 +5,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 
 import javax.swing.JCheckBox;
@@ -19,6 +20,8 @@ import org.jbox2d.common.Vec2;
 import org.jbox2d.dynamics.Body;
 import org.jbox2d.dynamics.Fixture;
 import org.jbox2d.dynamics.World;
+
+import java.awt.event.MouseListener;
 
 
 public class RunnerPaneMaker implements Schedulable,TabbedPaneActivator{
@@ -75,6 +78,7 @@ public class RunnerPaneMaker implements Schedulable,TabbedPaneActivator{
 
 	@Override
 	public void DoScheduled() {
+		
 		if(tabActive && !disable){ //Skip scheduled updates if this tab isn't in focus.
 			update();
 
@@ -122,6 +126,7 @@ public class RunnerPaneMaker implements Schedulable,TabbedPaneActivator{
 	public void ActivateTab() {
 		tabActive = true;
 		QWOPHandler.manualOverride = false;
+		RunPanel.requestFocus();
 		
 	}
 
@@ -139,7 +144,7 @@ public class RunnerPaneMaker implements Schedulable,TabbedPaneActivator{
 
 }
 
-class RunnerPane extends JPanel implements KeyListener{
+class RunnerPane extends JPanel implements KeyListener,MouseListener{
 	private World world;
 	
 	private Font QWOPLittle = new Font("Ariel", Font.BOLD,21);
@@ -193,6 +198,7 @@ class RunnerPane extends JPanel implements KeyListener{
 		this.QWOPHandler = QWOPHandler;
 		this.runmaker = runmaker;
 	  	  addKeyListener(this);
+	  	  addMouseListener(this);
 	}
 	
 	/** Give the visualizer a new world to work with. Saves creating too many new objects **/
@@ -248,7 +254,6 @@ class RunnerPane extends JPanel implements KeyListener{
 				g.drawLine(index*30, vertTextAnchor + depth*vertTextSpacing+2, 25+index*30, vertTextAnchor + depth*vertTextSpacing+2);
 			}
 		}
-    	
     	if(world != null){
     	Body newbody = world.getBodyList();
     	while (newbody != null){
@@ -355,7 +360,7 @@ class RunnerPane extends JPanel implements KeyListener{
     
 	@Override
 	public void keyPressed(KeyEvent arg0) {
-
+System.out.println("dddddddddddd");
 		if(arg0.getKeyChar() == 'q'){
 			Q = true;
 			QWOPHandler.Q = Q;
@@ -409,6 +414,31 @@ class RunnerPane extends JPanel implements KeyListener{
 	}
 	@Override
 	public void keyTyped(KeyEvent arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+	@Override
+	public void mouseClicked(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+	@Override
+	public void mouseEntered(MouseEvent e) {
+		this.requestFocus(); //Mouse position now decides whether the run pane or the tree pane has focus. There is a corresponding requestfocus in treepanemaker
+		
+	}
+	@Override
+	public void mouseExited(MouseEvent e) {
+	
+		
+	}
+	@Override
+	public void mousePressed(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+	@Override
+	public void mouseReleased(MouseEvent e) {
 		// TODO Auto-generated method stub
 		
 	}

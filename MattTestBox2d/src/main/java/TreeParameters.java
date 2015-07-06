@@ -64,11 +64,11 @@ public class TreeParameters {
 		public boolean PrioritizeNewNodes = false;
 		
 		/** Depth of the search (number of parameters down the tree) **/
-		public boolean limitDepth = false;
+		public boolean limitDepth = true;
 		public int treeDepth = 12;
 		
 		/** Settings for my heuristic search **/
-		public boolean stochasticDepth = true; //NOT BOTH THIS AND LIMITDEPTH
+		public boolean stochasticDepth = false; //NOT BOTH THIS AND LIMITDEPTH
 		public int stochasticHorizon = 4; // How far do we set the currentRoot from the selected endpoint.
 		public int sampleCount = 200; //How many games before we move on?
 		public int forwardJump = 1; //When moving down the tree, how many nodes do we jump?

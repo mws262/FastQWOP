@@ -20,7 +20,7 @@ public class SinglePathViewer implements Schedulable{
 	public String periodicLabel = "";
 	public ArrayList<String> deviationLabel = new ArrayList<String>();
 	
-	public int prefixLength = 8;
+	public int prefixLength = 12;
 	public int periodicLength = 4;
 	
 	public SinglePathViewer(QWOPInterface game) {
@@ -39,6 +39,7 @@ public class SinglePathViewer implements Schedulable{
 	/** Execute all paths and sequentially empty the queue **/
 	private void RunQueued(){
 		if(runPane != null){
+
 
 		//Do this for all queued paths.
 		while(queuedEndPoints.size() > 0 && runPane.isActiveTab()){ //Wait to burn through the queue until this pane is even active.
@@ -129,7 +130,7 @@ public class SinglePathViewer implements Schedulable{
 		if(runPane.isActiveTab() && game.manualOverride){
 			runPane.disable = false;
 			game.enterManualOverride();
-			runPane.disable = true;
+//			runPane.disable = true;
 			runPane.update();
 		}
 
@@ -151,7 +152,7 @@ public class SinglePathViewer implements Schedulable{
 	}
 	@Override
 	public void DoEvery() {
-		// TODO Auto-generated method stub
+		RunQueued();
 		
 	}
 	@Override

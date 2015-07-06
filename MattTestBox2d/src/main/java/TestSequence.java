@@ -18,6 +18,8 @@ public class TestSequence {
 			//{0, 26, 17, 55, 24, 69, 2, 61};//0, 25, 14, 51, 27, 66, 5, 64};//0, 25, 14, 49, 27, 68, 1, 61};//0, 25, 14, 51, 27, 66, 0, 64};//0, 23, 14, 50, 26, 65, 0, 61};
 		
 		game = new QWOPInterface();
+		game.periodicLength = 4;
+		game.prefixLength = 12;
 		game.NewGame(true);
 		VisMasterSMALL vis = new VisMasterSMALL(game);
 		vis.RunMaker.ActivateTab();

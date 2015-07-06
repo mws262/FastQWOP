@@ -34,7 +34,7 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	JTabbedPane DataTabs;
 	private ArrayList<TabbedPaneActivator> TabPanes= new ArrayList<TabbedPaneActivator>(); //List of all panes in the tabbed part
 	
-	public VisMaster(QWOPInterface QWOPHandler, TrialNode root, DataGrabber data, SinglePathViewer pathView){
+	public VisMaster(QWOPInterface QWOPHandler, ArrayList<TreeHandle> trees, DataGrabber data, SinglePathViewer pathView){
 
 	    Container pane = this.getContentPane();
 	    pane.setLayout(new GridBagLayout());
@@ -70,7 +70,7 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	    this.SnapshotPane = SnapshotMaker.SnapshotPanel;
 	    DataTabs.addTab("State Viewer", SnapshotPane);
 	    
-	    SelectTreeMaker = new TreePaneMaker(root,true,OptionsHolder.useGLSlave);
+	    SelectTreeMaker = new TreePaneMaker(trees,true,OptionsHolder.useGLSlave);
 	    SelectTreePane = SelectTreeMaker.TreePanel;
 	    DataTabs.addTab("Select Tree Pane", SelectTreePane);
 
@@ -96,7 +96,7 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	    TreeConstraints.ipady = (int) (OptionsHolder.windowHeight*0.95);
 	    TreeConstraints.ipadx = (int)(OptionsHolder.windowWidth*0.8);
 
-	    TreeMaker = new TreePaneMaker(root,false,OptionsHolder.useGLMaster);
+	    TreeMaker = new TreePaneMaker(trees,false,OptionsHolder.useGLMaster);
 	    this.TreePane = TreeMaker.TreePanel;
 	    TreeMaker.setSnapshotPane(SnapshotMaker);
 	    TreeMaker.TreePanel.setSingleViewer(pathView);

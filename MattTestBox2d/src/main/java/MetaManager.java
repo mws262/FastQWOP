@@ -1,6 +1,11 @@
+import java.util.ArrayList;
+
 
 public class MetaManager {
 
+	
+	static ArrayList<TreeHandle> trees = new ArrayList<TreeHandle>();
+	
 	public MetaManager() {
 		// TODO Auto-generated constructor stub
 	}
@@ -8,17 +13,21 @@ public class MetaManager {
 	public static void main(String[] args) throws SecurityException, IllegalArgumentException, NoSuchFieldException, IllegalAccessException {
 //		GraphicsHandler GH = new GraphicsHandler();
 //		GH.addUI();
+		ExhaustiveQwop eq = new ExhaustiveQwop(trees);
 		
-		ExhaustiveQwop eq = new ExhaustiveQwop();
+		for (int i = 0; i<10; i++){
+			
+			for(TreeHandle th: trees){
+				th.focus = false;
+			}
+			TreeParameters tp1 = new TreeParameters();
+			tp1.TreeLevel = 500*i;
+			eq.RunGame(tp1);
+			
+		}
 		
-		TreeParameters tp1 = new TreeParameters();
-		
-		eq.RunGame(tp1);
-		
-		TreeParameters tp2 = new TreeParameters();
-		tp2.TreeLevel = 1000;
+		eq.idleGraphics();
 
-		eq.RunGame(tp2);
 
 	}
 

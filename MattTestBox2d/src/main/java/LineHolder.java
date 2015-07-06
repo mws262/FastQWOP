@@ -17,12 +17,13 @@ public class LineHolder {
 	
 	public Color[] ColorList; //colors which correspond to the lines in LineList.
 	
+
 	//How far have we filled this LineList array?
 	private int fillIndex = 0;
-
+	
 	/** Create an empty holder for lines given the total number of expected lines **/
 	public LineHolder(int numLines) {
-		this.numLines = numLines;
+		this.numLines = numLines+1;
 		ColorList = new Color[numLines];
 		NodeList = new TrialNode[numLines][2];
 		LabelOn = new boolean[numLines]; //Does this node have a text label?
@@ -44,6 +45,13 @@ public class LineHolder {
 	/** Give this 2 nodes and it will store the line between them. **/
 	public void AddLine(TrialNode parent, TrialNode child){
 		
+		if (fillIndex >= numLines) { // Due to concurrency, there can sometimes
+									// be more lines than we previously thought
+									// when we made this. In this case, just
+									// ignore the extra ones until the next time
+									// through.
+			return;
+		}
 		if(parent.nodeColor != null){
 			ColorList[fillIndex] = parent.nodeColor;
 		}else{

@@ -12,7 +12,7 @@ public class ExhaustiveQwop {
 	public static TrialNode RootNode;
 	private static int depth;
 	
-	public static QWOPInterface QWOPHandler = new QWOPInterface();
+	public static QWOPInterface QWOPHandler;
 	
 	private final static Random rand = new Random();
 	
@@ -21,19 +21,26 @@ public class ExhaustiveQwop {
 
 	public DataGrabber saveInfo;
 	public VisMaster VisRoot;
-	private static SinglePathViewer SpecificViewer;
+	private SinglePathViewer SpecificViewer;
 	private Scheduler Every8;
 	private Scheduler EveryEnd;
 	
+	public ArrayList<TreeHandle> trees;
+	
 	private static TreeParameters tp; //The new version of OptionsHolder for parameters we might wish to change between different trees.
-	public ExhaustiveQwop() throws SecurityException, IllegalArgumentException, NoSuchFieldException, IllegalAccessException {
+	public ExhaustiveQwop(ArrayList<TreeHandle> trees) throws SecurityException, IllegalArgumentException, NoSuchFieldException, IllegalAccessException {
+		
+		QWOPHandler = new QWOPInterface();
+		//Give the specific run viewer access to the physics engine and game.
+		SpecificViewer = new SinglePathViewer(QWOPHandler);
+		this.trees = trees;
 		// Node visualization stuff
 		saveInfo = new DataGrabber();
 		saveInfo.setInterval(50);
 		Every8 = new Scheduler(); //This scheduler gets incremented every time we find a path that makes it out to 8 without falling.
 		Every8.addTask(saveInfo);
 		
-		VisRoot = new VisMaster(QWOPHandler,RootNode,saveInfo,SpecificViewer);
+		VisRoot = new VisMaster(QWOPHandler,trees,saveInfo,SpecificViewer);
 		EveryEnd = new Scheduler(); //This scheduler gets incremented every time we fail.
 		VisRoot.setInterval(1);
 		VisRoot.TreeMaker.setInterval(100);
@@ -52,8 +59,7 @@ public class ExhaustiveQwop {
 		VisRoot.RunMaker.setInterval(1);
 		EveryPhys.addTask(VisRoot.RunMaker);
 		QWOPHandler.addScheduler(EveryPhys);
-		//Give the specific run viewer access to the physics engine and game.
-		SpecificViewer = new SinglePathViewer(QWOPHandler);
+
 		
 
 		//Hackish way of making sure that the specific run viewer has access to the Runner pane in the tabs.
@@ -78,6 +84,9 @@ public class ExhaustiveQwop {
 		
 		//Create the root node.
 		RootNode =  new TrialNode(tp);
+		TreeHandle currentTree = new TreeHandle(RootNode);
+		currentTree.focus =  true;
+		trees.add(currentTree);
 		TrialNode CurrentNode;
 		TrialNode NextNode;
 		float currentRecord = 0;
@@ -125,7 +134,7 @@ public class ExhaustiveQwop {
 		VisRoot.SnapshotMaker.SnapshotPanel.prefixLength = tp.prefixLength;
 		VisRoot.SnapshotMaker.SnapshotPanel.periodicLength = tp.periodicLength;
 		
-		while (tempcounter<1000){//!finished){
+		while (tempcounter<100000){//!finished){
 tempcounter++;
 			
 			//NOTE TO SELF -- NOW ADD SOMETHING WHICH SHIFts US DOWN THE TREE ONE SPOT AND MAKES THAT THE ROOT.
@@ -303,7 +312,9 @@ tempcounter++;
 				CurrentNode.PropagateHighScore(CurrentNode.rawScore); //Make the score run back to the end of the periodic part so we know the max discovered score from this node.
 				if (CurrentNode.TreeDepth>maxDepth) { //Keep track of the deepest we've gone so far.
 					maxDepth = CurrentNode.TreeDepth; //Update the tree depth if we manage to go deeper.
-					VisRoot.TreeMaker.maxDepth = maxDepth;
+					if(maxDepth>VisRoot.TreeMaker.maxDepth){
+						VisRoot.TreeMaker.maxDepth = maxDepth;
+					}
 				}
 				//Plot the new tree nodes if this setting is on:
 				if(OptionsHolder.treeVisOn){
@@ -499,12 +510,25 @@ tempcounter++;
 			}
 			if (failed || reachedEndLim){
 				counter++; //Right now, the counter is just recording complete runs (ie until the failure occurs.
-				OptionsHolder.gamesPlayed = counter;
+				OptionsHolder.gamesPlayed++;
 			}
 		}
 		//Final info after the ENTIRE tree is explored.
 		String report = "Final iterations: " + counter;
 		if (verbose) report += ". Search space reduced to: " + searchspace; System.out.println(report);
+	}
+	
+	public void idleGraphics(){
+		while(true){
+		Every8.Iterate();
+		EveryEnd.Iterate();
+		try {
+			Thread.sleep(5);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		}
 	}
 	
 	//Generate a random integer between two values, inclusive.

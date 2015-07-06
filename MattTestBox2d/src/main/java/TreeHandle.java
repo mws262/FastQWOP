@@ -18,6 +18,9 @@ public class TreeHandle {
 	/** LineHolder for this tree **/
 	private LineHolder LH;
 	
+	/** Is this tree in focus? (ie greyed out or in color for now) **/
+	public boolean focus = false;
+	
 	/** Create a new TreeHandle by providing its root node **/
 	public TreeHandle(TrialNode root) {
 		this.root = root;
@@ -41,6 +44,12 @@ public class TreeHandle {
 	
 	/** Get the holder of the lines used for visualization **/
 	public LineHolder getLines(){
-		return root.GetNodeLines();
+		LH = root.GetNodeLines();
+		return LH;
 	}
+
+	/** Draw this tree. **/
+//	public void drawTree(GL2 gl){ //TODO
+//		
+//	}
 }

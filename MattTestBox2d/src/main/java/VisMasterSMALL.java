@@ -25,8 +25,7 @@ public class VisMasterSMALL extends JFrame implements Schedulable{
 	RunnerPaneMaker RunMaker;
 
 	JPanel RunPane;
-	
-	
+
 	JTabbedPane DataTabs;
 	private ArrayList<TabbedPaneActivator> TabPanes= new ArrayList<TabbedPaneActivator>(); //List of all panes in the tabbed part
 	
@@ -37,6 +36,7 @@ public class VisMasterSMALL extends JFrame implements Schedulable{
 	    
 	    /* RUNNER PANE */
 	    RunMaker = new RunnerPaneMaker(QWOPHandler);
+	    RunMaker.disable = false;
 	    this.RunPane = RunMaker.RunPanel;
 	    this.add(RunPane);
 

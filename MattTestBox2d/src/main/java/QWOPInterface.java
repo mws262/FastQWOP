@@ -27,8 +27,8 @@ public class QWOPInterface {
 	public int stepsInRun = 0; //Always counts up until a game reset. Helps ensure we know when we're doing something periodic.
 	
 	public boolean repeatSequence = false;
-	public int prefixLength = 0; //How many elements lead up to the repeated portion.
-	public int periodicLength = 0; // How many elements are the repeated portion.
+	public int prefixLength = 12; //How many elements lead up to the repeated portion.
+	public int periodicLength = 4; // How many elements are the repeated portion.
 	
 	public boolean visOn = false;
 	
