@@ -47,6 +47,14 @@ public class TreeHandle {
 		LH = root.GetNodeLines();
 		return LH;
 	}
+	
+	/** Get a single number representing the value of this tree so far. **/
+	public float getTreeScore(){
+		
+		
+		
+		return 0;
+	}
 
 	/** Draw this tree. **/
 //	public void drawTree(GL2 gl){ //TODO

@@ -9,16 +9,16 @@ import javax.vecmath.Vector3f;
 
 public class Constants {
 	
-	/** Pause variable **/
-	public static boolean pause = false;
-	
-	//Draw settings:
-	/**Size of points drawn by openGL**/
-	public static float pointSize = 8.f;
-	
-	//Camera Settings:
-	public static float oldToGLScaling = 0.01f;
-	public static float glScaling = 3.5f;
+//	/** Pause variable **/
+//	public static boolean pause = false;
+//	
+//	//Draw settings:
+//	/**Size of points drawn by openGL**/
+//	public static float pointSize = 8.f;
+//	
+//	//Camera Settings:
+//	public static float oldToGLScaling = 0.01f;
+//	public static float glScaling = 3.5f;
 
 //    /** Position of the camera. */
 //    public static Vector3f eyePos = new Vector3f(13, 5, 50);
@@ -44,11 +44,7 @@ public class Constants {
 //    public static float[] modelViewMat = new float[16];
 //    
 	//Lighting Settings:
-    /** Position of the light. Fixed at the location of the camera. */
-    public static float[] lightPos = {0f, 0f, 0f, 1f};
-    public static float[] lightAmbient = {0f, 0f, 0f, 1f};
-    public static float[] lightDiffuse = {0.9f, 0.9f, 0.9f, 1f};
-    public static float[] lightSpecular = {1f, 1f, 1f, 1f};
+
 	
 	
 }

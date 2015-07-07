@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Random;
+import java.util.concurrent.CopyOnWriteArrayList;
 //Note: periodic solutions with noise.
 public class ExhaustiveQwop {
 
@@ -25,10 +26,10 @@ public class ExhaustiveQwop {
 	private Scheduler Every8;
 	private Scheduler EveryEnd;
 	
-	public ArrayList<TreeHandle> trees;
+	public CopyOnWriteArrayList<TreeHandle> trees; //Thread safe version of ArrayList to hopefully prevent concurrentmodification exceptions.
 	
 	private static TreeParameters tp; //The new version of OptionsHolder for parameters we might wish to change between different trees.
-	public ExhaustiveQwop(ArrayList<TreeHandle> trees) throws SecurityException, IllegalArgumentException, NoSuchFieldException, IllegalAccessException {
+	public ExhaustiveQwop(CopyOnWriteArrayList<TreeHandle> trees) throws SecurityException, IllegalArgumentException, NoSuchFieldException, IllegalAccessException {
 		
 		QWOPHandler = new QWOPInterface();
 		//Give the specific run viewer access to the physics engine and game.
@@ -87,6 +88,7 @@ public class ExhaustiveQwop {
 		TreeHandle currentTree = new TreeHandle(RootNode);
 		currentTree.focus =  true;
 		trees.add(currentTree);
+		VisRoot.TreeMaker.addTree(currentTree);
 		TrialNode CurrentNode;
 		TrialNode NextNode;
 		float currentRecord = 0;
@@ -134,7 +136,7 @@ public class ExhaustiveQwop {
 		VisRoot.SnapshotMaker.SnapshotPanel.prefixLength = tp.prefixLength;
 		VisRoot.SnapshotMaker.SnapshotPanel.periodicLength = tp.periodicLength;
 		
-		while (tempcounter<100000){//!finished){
+		while (tempcounter<1000){//!finished){
 tempcounter++;
 			
 			//NOTE TO SELF -- NOW ADD SOMETHING WHICH SHIFts US DOWN THE TREE ONE SPOT AND MAKES THAT THE ROOT.

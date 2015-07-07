@@ -13,6 +13,7 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.media.opengl.awt.GLCanvas;
 import javax.media.opengl.awt.GLJPanel;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 
@@ -34,7 +35,7 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	JTabbedPane DataTabs;
 	private ArrayList<TabbedPaneActivator> TabPanes= new ArrayList<TabbedPaneActivator>(); //List of all panes in the tabbed part
 	
-	public VisMaster(QWOPInterface QWOPHandler, ArrayList<TreeHandle> trees, DataGrabber data, SinglePathViewer pathView){
+	public VisMaster(QWOPInterface QWOPHandler, CopyOnWriteArrayList<TreeHandle> trees, DataGrabber data, SinglePathViewer pathView){
 
 	    Container pane = this.getContentPane();
 	    pane.setLayout(new GridBagLayout());

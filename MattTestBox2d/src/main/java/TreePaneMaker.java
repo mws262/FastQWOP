@@ -5,6 +5,7 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Frame;
 import java.awt.Graphics;
+
 import javax.media.opengl.GL2;
 import javax.media.opengl.GLAutoDrawable;
 import javax.media.opengl.GLCapabilities;
@@ -28,7 +29,9 @@ import java.awt.event.MouseWheelListener;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
-
+import java.util.ConcurrentModificationException;
+import java.util.Iterator;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Handles all display of trees, but NOT their geometry (geometry is stored in the nodes themselves).
@@ -58,8 +61,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		"Alt-scroll spaces or contracts branches hovered over.",
 		"S turns score display on and off.",
 		"Meta-S turns value display.",
-		"P pauses the game's graphics (N/A for GL).",
-		"Meta-arrows rotates camera (N/A for JPanel)."
+		"Meta-arrows rotates camera."
 	};
 	
 	
@@ -67,7 +69,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	public static int TreeDepthOffset = 0; //Do we skip an of the original depth of the tree?
 	
 	  /** This is the root node from which the tree will be built out of **/
-	  public ArrayList<TreeHandle> trees;
+	  public CopyOnWriteArrayList<TreeHandle> trees = new CopyOnWriteArrayList<TreeHandle>();
 	  public TreeHandle activeTree;
 	  private SnapshotPaneMaker SnapshotPane;
 	  
@@ -118,10 +120,13 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	  public FontScaler scaleFont = new FontScaler(3,20,10);
 
 	  /** To create a new visualizer, must supply a starting tree and whether this is a slave panel **/
-	  public TreePaneMaker(ArrayList<TreeHandle> trees, boolean slave, boolean useGL) {
+	  public TreePaneMaker(CopyOnWriteArrayList<TreeHandle> trees, boolean slave, boolean useGL) {
 		
         this.useGL = useGL;
-        this.trees = trees;
+        
+        for(TreeHandle th: trees){
+        	this.trees.add(th);
+        }
         
         //Create the actual JPanel for the tree. Make sure the treepane knows if it's a slave.
 		TreePanel = new TreePane(slave);
@@ -223,7 +228,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
      */
     class TreePane extends GLJPanel implements MouseListener, MouseMotionListener, MouseWheelListener,KeyListener,GLEventListener{
   	  /** Reference to the container which has all the nodes and lines we wish to display **/
-      private ArrayList<TreeHandle> trees = new ArrayList<TreeHandle>();
+      private CopyOnWriteArrayList<TreeHandle> trees = new CopyOnWriteArrayList<TreeHandle>();
   	  
       /** Reference to the runner's single run animator. Needed for passing new focused nodes around **/
 	  private SinglePathViewer pathView;
@@ -260,28 +265,28 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	   
 	  private int width=400; // I think these values are meaningless since they change as per the layout manager.
 	  private int height = 200;
-	
+
 	  /** Actual frame object **/
 	  private Frame frame;
-	  
+
 	  /** If using openGL, we have to put a special GLCanvas inside the frame **/
 	  private GLCanvas canvas;
-	  	
+
 	  private CamManager cam;
-	  	
-		//ONLY APPLIES TO GL. Camera Settings. Initially camera is pointed -z, y is up. x is left?
-	  	/** Scaling of node coordinates to GL coordinates. **/
-		public float oldToGLScaling = 0.01f;
-		
-		/** Scaling of mouse movements to GL coordinates. TODO: Probably should just calculate this from view angle **/
-		public float glScaling = 3.5f;
 
-	    
+	  //ONLY APPLIES TO GL. Camera Settings. Initially camera is pointed -z, y is up. x is left?
+	  /** Scaling of node coordinates to GL coordinates. **/
+	  public float oldToGLScaling = 0.01f;
 
-		
-		/** For rendering text overlays. Note that textrenderer is for overlays while GLUT is for labels in world space **/
-		TextRenderer textRenderBig;
-		TextRenderer textRenderSmall;
+	  /** Scaling of mouse movements to GL coordinates. TODO: Probably should just calculate this from view angle **/
+	  public float glScaling = 3.5f;
+
+
+
+
+	  /** For rendering text overlays. Note that textrenderer is for overlays while GLUT is for labels in world space **/
+	  TextRenderer textRenderBig;
+	  TextRenderer textRenderSmall;
 		
 	  /** Constructor. Set up as either GL or not, Slave or not. **/
   	  public TreePane(boolean slave){
@@ -333,18 +338,20 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
     	  }
       }
       /** Pass the list of tree handles to this panel **/
-      public void setTree(ArrayList<TreeHandle> trees){
-    	  this.trees.clear();
-    	  for (TreeHandle th :trees){
-    		  this.trees.add(th);
+      public  void setTree(CopyOnWriteArrayList<TreeHandle> trees){
+    	  if(!slave){
+    		  this.trees.clear();
+    		  for (TreeHandle th :trees){
+    			  this.trees.add(th);
+    		  }
     	  }
       }
       /** Empty out the list of trees to be drawn **/
-      public void clearTrees(){
+      public  void clearTrees(){
     	  trees.clear();
       }
       /** Add a single tree for drawing **/
-      public void addSingleTree(TreeHandle tree){
+      public  void addSingleTree(TreeHandle tree){
     	  trees.add(tree);
       }   
       /** Set the single path viewer so we can queue up selected nodes for path viewing **/
@@ -352,7 +359,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
     	  this.pathView = pathView;
       } 
       /** Set the focused node **/
-      public void setFocusNode(TrialNode focus){
+      public  void setFocusNode(TrialNode focus){
     	  focusedNode = focus;
 			if(pathView != null){ //For now, queue it up also for next time the animation panel is running.
 				pathView.AddQueuedTrial(focusedNode);
@@ -474,7 +481,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 
 	@Override
 	/** This zooms in and out. Also changes the size factor in OptionsHolder to keep things consistent. **/
-	public synchronized void mouseWheelMoved(MouseWheelEvent e){
+	public  void mouseWheelMoved(MouseWheelEvent e){
 	
 	
 	if (e.getWheelRotation()<0){ //Negative mouse direction -> zoom in.
@@ -681,6 +688,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 					if(slaveMaker != null){
 //						slaveMaker.setRoot(focusedNode); //TODO fix
 //						slaveMaker.TreePanel.setTree(new ArrayList);
+						focusedNode.MakeAltTree(true); //True means this is the new root of the alternate tree.
 						slaveMaker.TreePanel.clearTrees();
 						slaveMaker.TreePanel.addSingleTree(new TreeHandle(focusedNode));
 						
@@ -702,6 +710,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 			
 		if(slaveMaker != null){ //If we have a slave pane, then also give it this node to visualize.
 //			slaveMaker.setRoot(focusedNode); //TODO fix	
+			focusedNode.MakeAltTree(true); //True means this is the new root of the alternate tree.
 			slaveMaker.TreePanel.clearTrees();
 			slaveMaker.TreePanel.addSingleTree(new TreeHandle(focusedNode));
 		}
@@ -729,7 +738,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
      * advance. GLEventListener implementation.
      */
 	@Override
-	public void display(GLAutoDrawable drawable) {
+	public  void display(GLAutoDrawable drawable) {
 
 		GL2 gl = drawable.getGL().getGL2();
 		GLUT glut = new GLUT();
@@ -777,7 +786,10 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 			return;
 		}
 		
-		for (TreeHandle th: trees){
+//		for (TreeHandle th: trees){
+		Iterator<TreeHandle> failsafeiterator = trees.iterator(); // Using CopyOnWriteArrayList eliminates concurrent access problems.
+		while(failsafeiterator.hasNext()){
+			TreeHandle th = failsafeiterator.next();
 
 			LineHolder Lines = th.getLines(); // Grab each lineholder corresponding to each tree one at a time.
 			
@@ -832,7 +844,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 				}
 				
 				//Display the focused point in red.
-				gl.glPointSize(50*1/Constants.glScaling);
+				gl.glPointSize(50*1/glScaling);
 				gl.glBegin(GL2.GL_POINTS);
 	    		  if(focusedNode != null){ //Color the focusedNode red.
 	    			  gl.glColor3f(1, 0, 0);
@@ -1010,22 +1022,15 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	@Override
 	public void init(GLAutoDrawable drawable) {
 		GL2 gl = drawable.getGL().getGL2();
-		System.err.println("INIT GL IS: " + gl.getClass().getName());
+//		System.err.println("INIT GL IS: " + gl.getClass().getName());
 
 		gl.setSwapInterval(1);
 		gl.glEnable(GL2.GL_DEPTH_TEST);
 		gl.glLineWidth(1);
 
 		gl.glEnable(GL2.GL_NORMALIZE);
-
-		// SETUP LIGHTING
-		gl.glMatrixMode(GL2.GL_MODELVIEW);
-		gl.glLoadIdentity();
-		gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_POSITION, Constants.lightPos, 0);
-	    gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_AMBIENT, Constants.lightAmbient, 0);
-		gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_DIFFUSE, Constants.lightDiffuse, 0);
-	    gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_SPECULAR, Constants.lightSpecular, 0);
-	    gl.glEnable(GL2.GL_LIGHT0);
+		
+		cam.initLighting(gl);
 	    
 		//Line smoothing -- get rid of the pixelated look.
 		gl.glEnable( GL2.GL_LINE_SMOOTH );

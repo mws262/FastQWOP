@@ -246,7 +246,7 @@ public class TrialNode {
 		nodeLocation2[1] = (float) (ParentNode.nodeLocation2[1] + OptionsHolder.edgeLengthAlt*Math.sin(nodeAngle2));
 	}
 	
-	
+	/** Secondary node positions for display in a slave panel **/
 	public void MakeAltTree(boolean newroot){ //Newroot -- should we treat this node as the new root of our alternate tree?
 		altTree = true;
 		if(newroot){
@@ -495,9 +495,6 @@ public class TrialNode {
 		NodeState = new StateHolder(QWOPHandler);
 		NodeState.CaptureState();
 	}
-	/** **/
-	public void InjectNode(){	
-	}
 	
 	/** Get the sequence of actions up to, and including this node **/
 	public int[] getSequence(){
@@ -740,5 +737,18 @@ public class TrialNode {
 		
 		return ChildNodes.indexOf(child);	//TODO: do I need error checking on this?
 
+	}
+	
+	/** Evaluate a value function recursively through an entire tree given. Must be of interface form GenericValueFunction **/
+	public void evalValueFunctionTree(GenericValueFunction vf){
+		if(vf.isValidNode(this)){ //According to this value function, should this node contribute to the value sum?
+			vf.addToValue(this); //If so, add the value to this value function.
+		}
+		
+		//Iterate to all children.
+		for (TrialNode tn: ChildNodes){
+			tn.evalValueFunctionTree(vf);
+		}
+		
 	}
 }

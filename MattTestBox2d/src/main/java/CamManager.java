@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.media.opengl.GL2;
 import javax.media.opengl.glu.GLU;
@@ -44,7 +45,12 @@ public class CamManager {
     /** Height of window. **/
     private float height = 0;
     
-    
+    /** Position of the light. Fixed at the location of the camera. */
+    public static float[] lightPos = {0f, 0f, 0f, 1f};
+    public static float[] lightAmbient = {0f, 0f, 0f, 1f};
+    public static float[] lightDiffuse = {0.9f, 0.9f, 0.9f, 1f};
+    public static float[] lightSpecular = {1f, 1f, 1f, 1f};
+
     /* Queued camera movements. The convention is step size and number of needed steps */
     private ArrayList<Vector3f> eyeIncrement = new ArrayList<Vector3f>();
     private ArrayList<Integer> eyeSteps = new ArrayList<Integer>();
@@ -86,6 +92,18 @@ public class CamManager {
 	public CamManager(float width, float height) {
 		this.width = width;
 		this.height = height;
+	}
+	
+	/** Setup Lighting **/
+	public void initLighting(GL2 gl){
+		// SETUP LIGHTING
+		gl.glMatrixMode(GL2.GL_MODELVIEW);
+		gl.glLoadIdentity();
+		gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_POSITION, lightPos, 0);
+	    gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_AMBIENT, lightAmbient, 0);
+		gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_DIFFUSE, lightDiffuse, 0);
+	    gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_SPECULAR, lightSpecular, 0);
+	    gl.glEnable(GL2.GL_LIGHT0);
 	}
 
 	/** Update all camera views and bookkeeping info. Any queued camera movements will be incremented. **/
@@ -396,7 +414,7 @@ public class CamManager {
 	    }
 	    
 	    /** Take a click vector, find the nearest node to this line. **/
-	    public TrialNode nodeFromRay(Vector3f ClickVec,ArrayList<TreeHandle> trees, float oldToGLScaling, boolean altFlag){ //Alt flag says whether to use Node location 2 or 1.
+	    public  TrialNode nodeFromRay(Vector3f ClickVec,CopyOnWriteArrayList<TreeHandle> trees, float oldToGLScaling, boolean altFlag){ //Alt flag says whether to use Node location 2 or 1.
 	    	// Determine which point is closest to the clicked ray.
 
 	    	double tanDist;
@@ -432,7 +450,7 @@ public class CamManager {
 	    }
 	    
 	    /** Directly get a selected node given click coordinates a reference to all the trees, a conversion between tree and GL scaling, and a flag telling us whether to look at the tree's primary or secondary coordinates. **/
-	    public TrialNode nodeFromClick(int mouseX, int mouseY, ArrayList<TreeHandle> trees, float oldToGLScaling, boolean altFlag){
+	    public TrialNode nodeFromClick(int mouseX, int mouseY, CopyOnWriteArrayList<TreeHandle> trees, float oldToGLScaling, boolean altFlag){
 	    	clickVec = clickVector(mouseX,mouseY);
 	    	return nodeFromRay(clickVec,trees, oldToGLScaling, altFlag);
 	    	
