@@ -14,46 +14,71 @@ public class TreeParameters {
 	
 	public float TreeLevel = 0; //plane level that the tree exists on.
 	/** List of possible actions at any point in this predefined sequence. Will wrap back to the first one whan each has been sampled from **/
-	public int[][] ActionList = {
-		
-		{0},
-		{26},
-		{19},
-		{20,25,30,35,40,45,49,50,51,52},
-		
-		{0,1,2,3},
-		{45,46,47,48,49,50,51,52,53,54,55},
-		{0,1,2,3},
-		{45,46,47,48,49,50,51,52,53,54,55},	
-		
-		{0,1,2,3},
-		{45,46,47,48,49,50,51,52,53,54,55},
-		{0,1,2,3},
-		{45,46,47,48,49,50,51,52,53,54,55},	
+//	public int[][] ActionList = {
+//		
+//		{0},
+//		{26},
+//		{19},
+//		{20,25,30,35,40,45,49,50,51,52},
+//		
+//		{0,1,2,3},
+//		{45,46,47,48,49,50,51,52,53,54,55},
+//		{0,1,2,3},
+//		{45,46,47,48,49,50,51,52,53,54,55},	
+//		
+//		{0,1,2,3},
+//		{45,46,47,48,49,50,51,52,53,54,55},
+//		{0,1,2,3},
+//		{45,46,47,48,49,50,51,52,53,54,55},	
+//	
+//		{0,1,2},
+//		{45,46,47},
+//		{1,2},
+//		{50,51},
+//	
+//		};
 	
-		{0,1,2},
-		{45,46,47},
-		{1,2},
-		{50,51},
-	
+	public int[][] ActionList = {{10},
+		{45},
+		{10},
+		{30},
+		//
+		{25},
+		{46},
+		{25},
+		{50},	
+		
+		{10},
+		{51,52,53,54,55},
+		{7,8,9,10},
+		{45,46,47},	
+
+		{0,1,2,3},
+		{37,38,39},
+		{0,1,2,3},
+		{37,38,39},
+
 		};
 	
 	// Once we get to the end of the prefix + periodic, 
 		public int[][] DeviationList = {
-			{0,1},
-			{-2,-1,0,1,2},
-			{0,1},
-			{-2,-1,0,1,2}
+			{0},
+			{0},
+			{0},
+			{0}
 		};
 		
-
 		/* SEARCH OPTIONS */
+		/** Maximum allowed number of runs in a single tree. This is most relevant in multi-tree executions. **/
+		public int maxpertree = 2000000; 
 		
 		/** After prefix + periodic, then switch to deviations instead of going back to the same list. **/
 		public boolean goDeviations = false;
+		/** When we get to the end of the selection sequence, do we start picking again from the "periodic" portion (as opposed to looping back to choice 1. **/
+		public boolean repeatSelectionInPeriodic = true; //DO NOT HAVE BOTH THIS AND GODEVIATIONS AT THE SAME TIME.
 		
 		/** Repeat actions to attempt periodic motion? **/
-		public boolean goPeriodic = false;
+//		public boolean goPeriodic = true;
 		
 		/** After failure, do we go back up to the nearest unexplored node (true), or do we reset to the top (false). **/
 		public boolean marchUp = false;
@@ -66,22 +91,20 @@ public class TreeParameters {
 		
 		/** Depth of the search (number of parameters down the tree) **/
 		public boolean limitDepth = false;
-		public int treeDepth = 12;
+		public int treeDepth = 6;
 		
 		/** Settings for my heuristic search **/
 		public boolean stochasticDepth = true; //NOT BOTH THIS AND LIMITDEPTH
-		public int stochasticHorizon = 4; // How far do we set the currentRoot from the selected endpoint.
-		public int sampleCount = 200; //How many games before we move on?
+		public int stochasticHorizon = 8; // How far do we set the currentRoot from the selected endpoint.
+		public int sampleCount = 100; //How many games before we move on?
 		public int forwardJump = 1; //When moving down the tree, how many nodes do we jump?
 		public int backwardJump = 1; //when moving back up the tree, how many nodes do we jump?
 		public boolean trimSimilar = false;
 		public boolean weightedSelection = false;
 		public boolean multiSelection = false;
-		public int multiPointCount = 2;
+		public int multiPointCount = 10;
 		
-		/** When we get to the end of the selection sequence, do we start picking again from the "periodic" portion (as opposed to looping back to choice 1. **/
-		public boolean repeatSelectionInPeriodic = true; //DO NOT HAVE BOTH THIS AND GODEVIATIONS AT THE SAME TIME.
-		
+
 		
 		public int prefixLength = 12; //How many elements lead up to the repeated portion.
 		public int periodicLength = 4; // How many elements are the repeated portion.

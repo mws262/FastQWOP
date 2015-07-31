@@ -8,6 +8,8 @@ import org.jbox2d.dynamics.Fixture;
 import org.jbox2d.dynamics.World;
 import org.jbox2d.dynamics.contacts.Contact;
 
+import TreeQWOP.QWOPInterface.stanceType;
+
 
 public class QWOPInterface {
 
@@ -36,6 +38,10 @@ public class QWOPInterface {
 	private boolean failFlag = false;
 	private Scheduler StepSched;
 	
+	/** Keep track of which feet are in contact with the ground. **/
+	public boolean RFootDown = true;
+	public boolean LFootDown = true;
+	
 	/** Do we want manual external keyboard control **/
 	public boolean manualOverride = false;
 	
@@ -44,6 +50,25 @@ public class QWOPInterface {
 	public boolean W = false;
 	public boolean O = false;
 	public boolean P = false;
+	
+	
+	/** Type of stance that occurs when executing the action of this node. I'm using this to try to eliminate double stance and very long flight phases. **/
+	public enum stanceType{
+		unknown,
+		flightPhase,
+		singleStance,
+		doubleStance
+	}
+	
+	/** What is the current runner stance? **/
+	public stanceType currentStance = stanceType.doubleStance;
+	/** What portion of the current command is spent in each stance? **/	
+	public int flightCount = 0;
+	public int doubleCount = 0;
+	public int singleCount = 0;
+	
+	/** Summed body height over one action. generally wish to minimize this **/
+	public float sumBodyHeight = 0;
 	
 	public QWOPInterface() {
 	}
@@ -112,7 +137,6 @@ public class QWOPInterface {
 	/* Check failure based on state */
 	public boolean CheckFailure(){
 		return failFlag;
-		//Removed the checker from OPTIONSHOLDER
 	}
 	
 	/** Callback calls this to demand instant termination of phys steps **/
@@ -141,7 +165,6 @@ public class QWOPInterface {
 		this.prefixLength = prefixLength;
 		this.periodicLength = periodicLength;
 		subsequence = Arrays.copyOfRange(currentSequence, prefixLength-1, periodicLength+prefixLength-1);
-//		System.out.println(subsequence.length);
 		while(!failFlag){
 			DoSequence(subsequence);
 		}
@@ -149,7 +172,15 @@ public class QWOPInterface {
 	}
 	/* Do one action (delay). Action order is defined here, the actual delay is externally input. Returns the cost.*/
 	public float NextAction(int delay) throws InterruptedException{
-
+		
+		
+		
+		//Reset stance counters per action
+		doubleCount = 0;
+		singleCount = 0;
+		flightCount = 0;
+		sumBodyHeight = 0;
+		
 		//Select an action:
 		switch (sequencePosition) { 
 		
@@ -158,6 +189,7 @@ public class QWOPInterface {
 			W = false;
 			O = false;
 			P = false;
+
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,false, false, false);
 				m_world.step(timestep, veliterations, positerations);
@@ -167,6 +199,21 @@ public class QWOPInterface {
 				if (StepSched != null){
 					StepSched.Iterate();
 				}
+				//Track what stance state it's in.
+				switch(currentStance){
+				case doubleStance:
+					doubleCount++;
+					break;
+				case singleStance:
+					singleCount++;
+					break;
+				case flightPhase:
+					flightCount++;
+					break;
+				default:
+					break;
+				}
+				sumBodyHeight += game.TorsoBody.getPosition().y;
 			}
 			break;
 		case 2: // W-O keys down
@@ -175,7 +222,6 @@ public class QWOPInterface {
 			W = true;
 			O = true;
 			P = false;
-			
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,true, true, false);
 				m_world.step(timestep, veliterations, positerations);
@@ -185,6 +231,21 @@ public class QWOPInterface {
 				if (StepSched != null){
 					StepSched.Iterate();
 				}
+				//Track what stance state it's in.
+				switch(currentStance){
+				case doubleStance:
+					doubleCount++;
+					break;
+				case singleStance:
+					singleCount++;
+					break;
+				case flightPhase:
+					flightCount++;
+					break;
+				default:
+					break;
+				}
+				sumBodyHeight += game.TorsoBody.getPosition().y;
 			}
 			break;
 		case 3: //Another pause.
@@ -193,7 +254,6 @@ public class QWOPInterface {
 			W = false;
 			O = false;
 			P = false;
-			
 			for (int j = 0; j<delay; j++){
 				game.everyStep(false,false, false, false);
 				m_world.step(timestep, veliterations, positerations);
@@ -203,6 +263,19 @@ public class QWOPInterface {
 				if (StepSched != null){
 					StepSched.Iterate();
 				}
+				//Track what stance state it's in.
+				switch(currentStance){
+				case doubleStance:
+					doubleCount++;
+					break;
+				case singleStance:
+					singleCount++;
+					break;
+				case flightPhase:
+					flightCount++;
+					break;
+				}
+				sumBodyHeight += game.TorsoBody.getPosition().y;
 			}
 			break;
 		case 4: // Q-P keys down.
@@ -211,7 +284,6 @@ public class QWOPInterface {
 			W = false;
 			O = false;
 			P = true;
-			
 			for (int j = 0; j<delay; j++){
 				game.everyStep(true,false, false, true);
 				m_world.step(timestep, veliterations, positerations);
@@ -221,14 +293,27 @@ public class QWOPInterface {
 				if (StepSched != null){
 					StepSched.Iterate();
 				}
+				//Track what stance state it's in.
+				switch(currentStance){
+				case doubleStance:
+					doubleCount++;
+					break;
+				case singleStance:
+					singleCount++;
+					break;
+				case flightPhase:
+					flightCount++;
+					break;
+				}
+				sumBodyHeight += game.TorsoBody.getPosition().y;
 			}
 			break;
 		default:
 			throw new RuntimeException("Tried to do an undefined step sequence action.");
 		}
-		
+//		System.out.println(stanceDuringAction.toString());
 		//Increment us to the next action in the sequence:
-		sequencePosition = (sequencePosition)%4 + 1;
+		sequencePosition = (sequencePosition)%periodicLength + 1;
 		
 		if (currentIndex < 50 ){
 			currentSequence[currentIndex] = delay; //Keep track of the sequence we're doing this run.
@@ -261,26 +346,58 @@ class CollisionListener implements ContactListener{
 		Fixture fixtureA = contact.getFixtureA();
 		Fixture fixtureB = contact.getFixtureB();
 
+		//Failure when head, arms, or thighs hit the ground.
 		if(fixtureA.m_body.equals(game.HeadBody) ||
-		fixtureB.m_body.equals(game.HeadBody) ||
-		fixtureA.m_body.equals(game.LLArmBody) ||
-		fixtureB.m_body.equals(game.LLArmBody) ||
-		fixtureA.m_body.equals(game.RLArmBody) ||
-		fixtureB.m_body.equals(game.RLArmBody)) {
+				fixtureB.m_body.equals(game.HeadBody) ||
+				fixtureA.m_body.equals(game.LLArmBody) ||
+				fixtureB.m_body.equals(game.LLArmBody) ||
+				fixtureA.m_body.equals(game.RLArmBody) ||
+				fixtureB.m_body.equals(game.RLArmBody)) {
 			QWOPHandler.InstaFail();
-		}
-		if(fixtureA.m_body.equals(game.LThighBody)||
-		fixtureB.m_body.equals(game.LThighBody)||
-		fixtureA.m_body.equals(game.RThighBody)||
-		fixtureB.m_body.equals(game.RThighBody)){
+		}else if(fixtureA.m_body.equals(game.LThighBody)||
+				fixtureB.m_body.equals(game.LThighBody)||
+				fixtureA.m_body.equals(game.RThighBody)||
+				fixtureB.m_body.equals(game.RThighBody)){
 			QWOPHandler.InstaFail();
-		}
+		}else if(fixtureA.m_body.equals(game.RFootBody) || fixtureB.m_body.equals(game.RFootBody)){//Track when each foot hits the ground.
+			QWOPHandler.RFootDown = true;
+			if(QWOPHandler.LFootDown){ //Change stance type if needed 
+				QWOPHandler.currentStance = stanceType.doubleStance;
+			}else{
+				QWOPHandler.currentStance = stanceType.singleStance;
+			}
 			
+		}else if(fixtureA.m_body.equals(game.LFootBody) || fixtureB.m_body.equals(game.LFootBody)){
+			QWOPHandler.LFootDown = true;
+			if(QWOPHandler.RFootDown){
+				QWOPHandler.currentStance = stanceType.doubleStance;
+			}else{
+				QWOPHandler.currentStance = stanceType.singleStance;
+			}
+		}
+	
 	}
 
 	@Override
 	public void endContact(Contact contact) {
-		// TODO Auto-generated method stub
+		//Track when each foot leaves the ground.
+		Fixture fixtureA = contact.getFixtureA();
+		Fixture fixtureB = contact.getFixtureB();
+		if(fixtureA.m_body.equals(game.RFootBody) || fixtureB.m_body.equals(game.RFootBody)){
+			QWOPHandler.RFootDown = false;
+			if(QWOPHandler.LFootDown){
+				QWOPHandler.currentStance = stanceType.singleStance;
+			}else{
+				QWOPHandler.currentStance = stanceType.flightPhase;
+			}
+		}else if(fixtureA.m_body.equals(game.LFootBody) || fixtureB.m_body.equals(game.LFootBody)){
+			QWOPHandler.LFootDown = false;
+			if(QWOPHandler.RFootDown){
+				QWOPHandler.currentStance = stanceType.singleStance;
+			}else{
+				QWOPHandler.currentStance = stanceType.flightPhase;
+			}
+		}
 		
 	}
 

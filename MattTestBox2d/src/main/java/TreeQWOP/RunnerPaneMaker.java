@@ -7,6 +7,7 @@ import java.awt.Graphics2D;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 import javax.swing.JCheckBox;
@@ -96,7 +97,7 @@ public class RunnerPaneMaker implements Schedulable,TabbedPaneActivator{
 //			}
 
 			try {
-
+				
 				Thread.sleep((long)(timestep));
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
@@ -179,7 +180,8 @@ class RunnerPane extends JPanel implements KeyListener,MouseListener{
 	QWOPInterface QWOPHandler;
 	RunnerPaneMaker runmaker;
 	int headpos = 0;
-
+	DecimalFormat dc = new DecimalFormat("#.#");
+	
 	String prefixLabel = "";
 	String periodicLabel = "";
 	ArrayList<String> deviationLabel;
@@ -231,14 +233,14 @@ class RunnerPane extends JPanel implements KeyListener,MouseListener{
 	    	}
 	    	g.setColor(Color.BLACK);
 	    	g.setFont(littleFont);
-			g.drawString("R-key overrides to manual control.", 10,905);
+			g.drawString("R-key overrides to manual control.", 490,110);
 			g.setFont(bigFont);
 		}else if(QWOPHandler.manualOverride){
 			g.drawString("Manual keyboard override.", 10,50);
 		}else{
 			g.drawString("Going through the tree.", 10,50);
 			g.setFont(littleFont);
-			g.drawString("R-key overrides to manual control.", 10,905);
+			g.drawString("R-key overrides to manual control.", 490,110);
 			g.setFont(bigFont);
 		}
 		
@@ -246,13 +248,13 @@ class RunnerPane extends JPanel implements KeyListener,MouseListener{
 		if(prefixLabel != ""){
 			int index = QWOPHandler.currentIndex;
 			if (index < prefixLength){
-				g.drawLine(index*30, vertTextAnchor + vertTextSpacing+1, 25+index*30, vertTextAnchor + vertTextSpacing+1);
-				g.drawLine(index*30, vertTextAnchor + vertTextSpacing+2, 25+index*30, vertTextAnchor + vertTextSpacing+2);
+				g.drawLine(index*32, vertTextAnchor + vertTextSpacing+1, 25+index*32, vertTextAnchor + vertTextSpacing+1);
+				g.drawLine(index*32, vertTextAnchor + vertTextSpacing+2, 25+index*32, vertTextAnchor + vertTextSpacing+2);
 			}else{
-				int depth = index/4;
-				index = (index-(prefixLength))%4;
-				g.drawLine(index*30, vertTextAnchor + depth*vertTextSpacing+1, 25+index*30, vertTextAnchor + depth*vertTextSpacing+1);
-				g.drawLine(index*30, vertTextAnchor + depth*vertTextSpacing+2, 25+index*30, vertTextAnchor + depth*vertTextSpacing+2);
+				int depth = (index-prefixLength)/periodicLength+2;
+				index = (index-(prefixLength))%periodicLength;
+				g.drawLine(index*32, vertTextAnchor + depth*vertTextSpacing+1, 25+index*32, vertTextAnchor + depth*vertTextSpacing+1);
+				g.drawLine(index*32, vertTextAnchor + depth*vertTextSpacing+2, 25+index*32, vertTextAnchor + depth*vertTextSpacing+2);
 			}
 		}
     	if(world != null){
@@ -295,12 +297,15 @@ class RunnerPane extends JPanel implements KeyListener,MouseListener{
 
 	    		}
 	    		newfixture = newfixture.getNext();
-	    		
+	    		for(int i = 0; i<10; i++){
+		    		g.drawString("_",((offsetx-offsetx0-i*70)%this.getWidth())+this.getWidth(),900);
+	    		}
+
 	    	}
 	    	
 	    	newbody = newbody.getNext();
     	}
-    	
+//    	g.drawString(dc.format(-(headpos+30)/40.) + " metres", 500, 110);
     	keyDrawer(g, QWOPHandler.Q,QWOPHandler.W,QWOPHandler.O,QWOPHandler.P);
     	offsetx = headpos + offsetx0;
     }

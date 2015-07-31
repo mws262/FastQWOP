@@ -43,7 +43,6 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	
 	    ///// Tabbed panes ///////
 
-	    
 	    GridBagConstraints DataConstraints = new GridBagConstraints();
 	    DataConstraints.fill = GridBagConstraints.HORIZONTAL;
 	    DataConstraints.gridx = 0;
@@ -56,6 +55,11 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	    DataTabs = new JTabbedPane();
 	    DataTabs.setBorder(BorderFactory.createRaisedBevelBorder());
 	    pane.add(DataTabs,DataConstraints);
+	    
+	    /* SUBTREE PANE */
+	    SelectTreeMaker = new TreePaneMaker(trees,true,OptionsHolder.useGLSlave);
+	    SelectTreePane = SelectTreeMaker.TreePanel;
+	    DataTabs.addTab("Select Tree Pane", SelectTreePane);
 	    
 	    /* DATA PANE */
 	    DataMaker = new DataPaneMaker("Plot1",data);
@@ -72,16 +76,12 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	    this.SnapshotPane = SnapshotMaker.SnapshotPanel;
 	    DataTabs.addTab("State Viewer", SnapshotPane);
 	    
-	    SelectTreeMaker = new TreePaneMaker(trees,true,OptionsHolder.useGLSlave);
-	    SelectTreePane = SelectTreeMaker.TreePanel;
-	    DataTabs.addTab("Select Tree Pane", SelectTreePane);
-
-	    
 	    //Handle listening to tab changes. Disable any updates on inactive tabs.
+	    TabPanes.add(SelectTreeMaker);
 	    TabPanes.add(DataMaker);
 	    TabPanes.add(RunMaker);
 	    TabPanes.add(SnapshotMaker);
-	    TabPanes.add(SelectTreeMaker);
+
 	    DataTabs.addChangeListener(this);
 	    
 	    //Make sure the currently active tab is actually being updated.

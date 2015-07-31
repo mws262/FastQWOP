@@ -15,6 +15,10 @@ import javax.media.opengl.GLProfile;
 import javax.media.opengl.awt.GLCanvas;
 import javax.media.opengl.awt.GLJPanel;
 import javax.media.opengl.glu.GLU;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.TargetDataLine;
 import javax.vecmath.Vector3f;
 
 import com.jogamp.opengl.util.awt.TextRenderer;
@@ -64,7 +68,9 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		"Meta-S turns value display.",
 		"Meta-arrows rotates camera.",
 		"Alt-LR arrow twists camera",
-		"C toggles camera auto-follow."
+		"C toggles camera auto-follow.",
+		"P pauses tree expansion. Graphics remain.",
+		"EXPERIMENTAL -- k to kill all but selected in multi-selection."
 	};
 	
 	
@@ -120,7 +126,10 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	  private Font bigFont = new Font ("Ariel", style , 36);
 	  private Font smallFont = new Font("Ariel",style, 14);
 	  
-	  public FontScaler scaleFont = new FontScaler(3,20,10);
+//	  public FontScaler scaleFont = new FontScaler(3,20,10);
+	  
+	  /** Pause the running of tree expansion. Graphics should keep going. ExhaustiveQWOP needs to check this. **/
+	  public boolean pause = true;
 
 	  /** To create a new visualizer, must supply a starting tree and whether this is a slave panel **/
 	  public TreePaneMaker(CopyOnWriteArrayList<TreeHandle> trees, boolean slave, boolean useGL) {
@@ -281,6 +290,9 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 
 	  private CamManager cam;
 
+	  /**Used for time varying colors **/
+	  private int phasecounter = 0;
+	  
 	  //ONLY APPLIES TO GL. Camera Settings. Initially camera is pointed -z, y is up. x is left?
 	  /** Scaling of node coordinates to GL coordinates. **/
 	  public float oldToGLScaling = 0.01f;
@@ -288,13 +300,19 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	  /** Scaling of mouse movements to GL coordinates. TODO: Probably should just calculate this from view angle **/
 	  public float glScaling = 3.5f;
 
-
-
-
 	  /** For rendering text overlays. Note that textrenderer is for overlays while GLUT is for labels in world space **/
 	  TextRenderer textRenderBig;
 	  TextRenderer textRenderSmall;
 		
+	  /** for multipoint trimming by using the k key **/
+	  boolean trimMultiFlag = false;
+	  TrialNode trimMultiNode = null;
+	  
+	  private Recorder soundlevels;
+	  
+	  /** Height of each stack of trees (if relevant) **/
+	  private float heightrange = OptionsHolder.heightSpacing*OptionsHolder.treesPerStack;
+	  
 	  /** Constructor. Set up as either GL or not, Slave or not. **/
   	  public TreePane(boolean slave){
   		  
@@ -329,6 +347,12 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	   	  	  }else{
 	   	  		  //x - 10 from default for the slave panel.
 	   	  		cam = new CamManager(width,height,new Vector3f(3, 5, 50),new Vector3f(3, 5, 0)); 
+	   	  	  }
+	   	  	  
+	   	  	  //Make a new re
+	   	  	  if(OptionsHolder.soundcolors){
+	   	  		  soundlevels = new Recorder();
+	   	  		  new Thread(soundlevels).start();
 	   	  	  }
 	        
   	  }
@@ -394,15 +418,22 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
       }
       
       /** Convert a cost too a blue scale for showing tree depth.**/
-      public Color getDepthColor(int depth)
+      public Color getDepthColor(int depth,float height,boolean modulateLighting)
       {
 
+    	  float coloffset = 0.35f;
+    	  if(OptionsHolder.soundcolors){
+    		  coloffset = 3*soundlevels.rms;
+    		  
+    	  }
     	  float scaledDepth = (float)depth/(float)maxDepth;
 
-    	  float H = (float)(scaledDepth* 0.38)+0.35f;
-    	  float S = 1f; // Saturation
-    	  float B = 0.85f; // Brightness
-
+    	  float H = (float)(scaledDepth* 0.38)+coloffset;
+    	  float S = 1f*(1-height/(heightrange)); // Saturation
+    	  float B = 0.85f;
+    	  if(modulateLighting){//do we want the breathing lighting?
+    		  B = 1f*(float)(Math.sin(phasecounter/10.)+1)/4+0.5f; // Brightness 
+    	  }
     	  return Color.getHSBColor(H, S, B);
       }
 
@@ -493,17 +524,13 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	
 	if (e.getWheelRotation()<0){ //Negative mouse direction -> zoom in.
 		if(e.isAltDown()){
-//			if(slave){// If slave, search among the alternate node locations in the subview panel. TODO:
-//				focusedNode = Lines.GetNearestNodeAlt(e.getX(), e.getY());
-//			}else{
-//				focusedNode = Lines.GetNearestNode(e.getX(), e.getY());
-//			}
-//			if(slave){
-//				focusedNode.SpaceBranchAlt(0.1);
-//			}else{
-//				focusedNode.SpaceBranch(0.1);
-//			}
-
+			if(slave){
+				focusedNode = cam.nodeFromClick(e.getX(), e.getY(), trees, oldToGLScaling, true);
+				focusedNode.SpaceBranchAlt(0.1);
+			}else{
+				focusedNode = cam.nodeFromClick(e.getX(), e.getY(), trees, oldToGLScaling, false);
+				focusedNode.SpaceBranch(0.1);
+			}
 
 		}else{
 			cam.smoothZoom(0.9f, 5);
@@ -511,17 +538,14 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		}
 	}else{
 		if(e.isAltDown()){
-//			if(slave){// If slave, search among the alternate node locations in the subview panel.
-//				focusedNode = Lines.GetNearestNodeAlt(e.getX(), e.getY());
-//			}else{
-//				focusedNode = Lines.GetNearestNode(e.getX(), e.getY());
-//			}
-//			if(slave){
-//				focusedNode.SpaceBranchAlt(-0.1);
-//			}else{
-//				focusedNode.SpaceBranch(-0.1);
-//			}
-//			
+			if(slave){
+				focusedNode = cam.nodeFromClick(e.getX(), e.getY(), trees, oldToGLScaling, true);
+				focusedNode.SpaceBranchAlt(-0.1);
+			}else{
+				focusedNode = cam.nodeFromClick(e.getX(), e.getY(), trees, oldToGLScaling, false);
+				focusedNode.SpaceBranch(-0.1);
+			}
+			
 		}else{
 			cam.smoothZoom(1.1f, 5);
 			glScaling*=1.1;
@@ -622,7 +646,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		//Navigating the focused node tree
 		   int keyCode = e.getKeyCode();
 
-		    if(e.isMetaDown() && useGL){ //if we're using GL, then we'll move the camera with mac key + arrows
+		    if(e.isMetaDown()){ //if we're using GL, then we'll move the camera with mac key + arrows
 		    	switch( keyCode ) { 
 		        case KeyEvent.VK_UP: //Go out the branches of the tree
 		        	cam.smoothRotateLong(0.1f, 5);
@@ -636,6 +660,10 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		        case KeyEvent.VK_RIGHT : //Go right along an isobranch
 		        	cam.smoothRotateLat(-0.1f, 5);
 		            break;
+		        case KeyEvent.VK_S : // toggle the score text at the end of all branches
+					valDisplay = !valDisplay;
+					scoreDisplay = false;
+					break;
 			    }
 		     }else if(e.isAltDown()){
 			    	switch( keyCode ) { 
@@ -663,24 +691,29 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 			        case KeyEvent.VK_C : //toggle camera following of new trees.
 			        	camFollow = !camFollow;
 			        	break;
-			     }
+			        case KeyEvent.VK_P : //Pause everything except for graphics updates
+			        	if(e.isShiftDown()){
+			        		OptionsHolder.pauseWithAdvance = !OptionsHolder.pauseWithAdvance;
+			        	}else{
+			        		pause  = !pause;
+			        	}
+			        	break;
+			        case KeyEvent.VK_S : 
+							scoreDisplay = !scoreDisplay;
+							valDisplay = false;
+						break;
+			        case KeyEvent.VK_K :
+			        	if(!pause){
+			        		trimMultiFlag = true;
+			        		trimMultiNode = focusedNode;
+			        	}
+			        	break;
+
+			        	
+			        	
+				    }
 		    	
 		    }
-		    
-		switch(e.getKeyChar()){
-		case 's': // toggle the score text at the end of all branches
-			if (e.isMetaDown()){
-				valDisplay = !valDisplay;
-				scoreDisplay = false;
-			}else{
-				scoreDisplay = !scoreDisplay;
-				valDisplay = false;
-			}
-			break;
-		case 'p': //Pause visualization.
-			pauseDraw = !pauseDraw;
-			break;
-		}
 	}
 
 	@Override
@@ -690,27 +723,18 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	public void keyTyped(KeyEvent e) {
 		switch(e.getKeyChar()){
 			case 't': // explore specific branch by setting an override node.
+				
 				//Uncolor the previous subtree, if it exists.
 				if(OverrideNode != null){
 					OverrideNode.ColorChildren(Color.BLACK);
 				}
 				
 				if(focusedNode != null && !focusedNode.FullyExplored){
-					OverrideNode = focusedNode;
-					Override = !Override;
-					if(Override){
-						OverrideNode.ColorChildren(Color.ORANGE);
-					}else{
-						OverrideNode.ColorChildren(Color.BLACK);
-					}
 					
-					if(slaveMaker != null){
-//						slaveMaker.setRoot(focusedNode); //TODO fix
-//						slaveMaker.TreePanel.setTree(new ArrayList);
-						focusedNode.MakeAltTree(true); //True means this is the new root of the alternate tree.
-						slaveMaker.TreePanel.clearTrees();
-						slaveMaker.TreePanel.addSingleTree(new TreeHandle(focusedNode));
-						
+					if(Override){
+						Override = false;
+					}else{
+						setOverride(focusedNode);
 					}
 				}
 				break;
@@ -725,7 +749,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		focusedNode = node; //Change the focus to the specified new override node.
 		OverrideNode = node; // make the given node our override also
 		Override = true; // set override flag to true.
-		OverrideNode.ColorChildren(Color.ORANGE);
+		OverrideNode.ColorChildren(Color.RED);
 			
 		if(slaveMaker != null){ //If we have a slave pane, then also give it this node to visualize.
 //			slaveMaker.setRoot(focusedNode); //TODO fix	
@@ -794,11 +818,12 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		}
 
 		//if we want the camera to follow along with new trees. press c to toggle.
-		if( camFollow && trees.size() >0 && numtrees !=trees.size() && !slave){
+		if( camFollow && trees.size() >0 && numtrees <trees.size() && !slave){
 			
 			glScaling = 3.5f;
-			Vector3f tarpos = new Vector3f(oldToGLScaling*trees.get(trees.size()-1).getRoot().nodeLocation[0],oldToGLScaling*trees.get(trees.size()-1).getRoot().nodeLocation[1],oldToGLScaling*trees.get(trees.size()-1).getRoot().height);
-			Vector3f campos = new Vector3f(-5,-10,50);
+			TrialNode tn = trees.get(trees.size()-1).getRoot();
+			Vector3f tarpos = new Vector3f(oldToGLScaling*tn.nodeLocation[0]+5,oldToGLScaling*tn.nodeLocation[1],oldToGLScaling*tn.height);
+			Vector3f campos = new Vector3f(-5,-10,70);
 			campos.add(tarpos);
 			cam.smoothTranslateAbsolute(campos, tarpos, 20);
 			numtrees = trees.size();
@@ -814,20 +839,20 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 //		gl.glLoadIdentity();
 //		gl.glBegin (GL2.GL_QUADS);
 //		//Bottom part of background:
-////		gl.glColor3f(0.9f, 1.f, 1f); //These commented lines will make it a gradient background. Currently it's white.
-//		gl.glColor3f(1f, 1f, 1f);
+//		gl.glColor3f(0.9f, 1.f, 1f); //These commented lines will make it a gradient background. Currently it's white.
+////		gl.glColor3f(1f, 1f, 1f);
 //		gl.glVertex3f (-1, -1, 0.99f);
 //		gl.glVertex3f (1, -1, 0.99f);
 //		//Top of background.
-////		gl.glColor3f(0.1f, 0.1f, 0.6f);
-//		gl.glColor3f(1f, 1f, 01f);
+//		gl.glColor3f(0.1f, 0.1f, 0.6f);
+////		gl.glColor3f(1f, 1f, 01f);
 //		gl.glVertex3f (1, 1, 0.99f);
 //		gl.glVertex3f (-1, 1, 0.99f);
 //		gl.glEnd ();
 //		gl.glPopMatrix();
 //		gl.glMatrixMode(GL2.GL_MODELVIEW);
 //		gl.glPopMatrix ();
-		
+//		
 
 		
 //		for (TreeHandle th: trees){
@@ -936,7 +961,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 		      			gl.glColor3fv(Lines.ColorList[i].getColorComponents(null),0);
 					}else{
 
-						gl.glColor3fv(getDepthColor(Lines.NodeList[i][1].TreeDepth).getRGBColorComponents(null),0);
+						gl.glColor3fv(getDepthColor(Lines.NodeList[i][1].TreeDepth,Lines.NodeList[i][1].height,false).getRGBColorComponents(null),0);
 					}
 		      		gl.glVertex3d(oldToGLScaling*Lines.NodeList[i][0].nodeLocation2[0], oldToGLScaling*Lines.NodeList[i][0].nodeLocation2[1], 0);
 		      		gl.glVertex3d(oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[0], oldToGLScaling*Lines.NodeList[i][1].nodeLocation2[1], 0);
@@ -981,7 +1006,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 						for(int i = 0; i<Lines.NodeList.length; i++){
 
 
-							if (!Lines.NodeList[i][1].TempFullyExplored && Lines.NodeList[i][1].DeadEnd && OptionsHolder.failTypeDisp ){
+							if (Lines.NodeList[i][1] != null && !Lines.NodeList[i][1].TempFullyExplored && Lines.NodeList[i][1].DeadEnd && OptionsHolder.failTypeDisp ){
 								if (Lines.NodeList[i][1].FailType == StateHolder.FailMode.BACK){ // Failures -- we fell backwards
 									gl.glColor3f(0, 1, 1);
 									gl.glVertex3d(oldToGLScaling*Lines.NodeList[i][1].nodeLocation[0], oldToGLScaling*Lines.NodeList[i][1].nodeLocation[1],  oldToGLScaling*Lines.NodeList[i][1].height);
@@ -1008,20 +1033,26 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 					gl.glBegin(GL2.GL_LINES);
 					//color information is stored in each vertex.
 					gl.glColor3f(1.f,0.f,0.f);
+
+					if(Lines.numLines>1){ //Catch the stupid case where we are paused before any games have run.
 					for (int i = 0; i<Lines.numLines; i++){
-						if(Lines.NodeList[i][1].nodeLocation[0] == 0 && Lines.NodeList[i][1].nodeLocation[1] == 0){ //If the x2 and y2 are 0, we've come to the end of actual lines.
+
+						if(Lines.NodeList[i][1].nodeLocation == null && Lines.NodeList[i][1].nodeLocation[0] == 0 && Lines.NodeList[i][1].nodeLocation[1] == 0){ //If the x2 and y2 are 0, we've come to the end of actual lines.
 							break;
 						}
 						if(!th.focus){ //if this tree does not have focus, grey it.
-							float[] col = getDepthColor(Lines.NodeList[i][1].TreeDepth).getRGBColorComponents(null);
+							float[] col = getDepthColor(Lines.NodeList[i][1].TreeDepth,Lines.NodeList[i][1].height,false).getRGBColorComponents(null);
 							gl.glColor4f(col[0], col[1], col[2], 0.5f);
 						}else if(!Lines.ColorList[i].equals(Color.BLACK)){
 							gl.glColor3fv(Lines.ColorList[i].getColorComponents(null),0);
+//							gl.glColor3fv(getDepthColor(Lines.NodeList[i][1].TreeDepth,Lines.NodeList[i][1].height,false).getRGBColorComponents(null),0);
+
 						}else{						
-							gl.glColor3fv(getDepthColor(Lines.NodeList[i][1].TreeDepth).getRGBColorComponents(null),0);
+							gl.glColor3fv(getDepthColor(Lines.NodeList[i][1].TreeDepth,Lines.NodeList[i][1].height,false).getRGBColorComponents(null),0);
 						}
 						gl.glVertex3d(oldToGLScaling*Lines.NodeList[i][0].nodeLocation[0], oldToGLScaling*Lines.NodeList[i][0].nodeLocation[1], oldToGLScaling*Lines.NodeList[i][0].height);
 						gl.glVertex3d(oldToGLScaling*Lines.NodeList[i][1].nodeLocation[0], oldToGLScaling*Lines.NodeList[i][1].nodeLocation[1], oldToGLScaling*Lines.NodeList[i][1].height);
+					}
 					}
 			}
 			gl.glEnd();
@@ -1069,6 +1100,7 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 
 
 		}
+		phasecounter++; //just for doing time varying colors.
 
 	}
 	
@@ -1150,4 +1182,65 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	public void DeactivateTab() {
 		activeTab = false;
 	}
+}
+class Recorder implements Runnable {
+    public float rms = 0; 
+    public float peak = 0;
+    Recorder() {
+    }
+
+    @Override
+    public void run() {
+        AudioFormat fmt = new AudioFormat(44100f, 16, 1, true, false);
+        final int bufferByteSize = 2048;
+
+        TargetDataLine line;
+        try {
+            line = AudioSystem.getTargetDataLine(fmt);
+            line.open(fmt, bufferByteSize);
+        } catch(LineUnavailableException e) {
+            System.err.println(e);
+            return;
+        }
+
+        byte[] buf = new byte[bufferByteSize];
+        float[] samples = new float[bufferByteSize / 2];
+
+        float lastPeak = 0f;
+
+        line.start();
+        for(int b; (b = line.read(buf, 0, buf.length)) > -1;) {
+
+            // convert bytes to samples here
+            for(int i = 0, s = 0; i < b;) {
+                int sample = 0;
+
+                sample |= buf[i++] & 0xFF; // (reverse these two lines
+                sample |= buf[i++] << 8;   //  if the format is big endian)
+
+                // normalize to range of +/-1.0f
+                samples[s++] = sample / 32768f;
+            }
+
+            for(float sample : samples) {
+
+                float abs = Math.abs(sample);
+                if(abs > peak) {
+                    peak = abs;
+                }
+
+                rms += sample * sample;
+            }
+
+            rms = (float)Math.sqrt(rms / samples.length);
+
+            if(lastPeak > peak) {
+                peak = lastPeak * 0.875f;
+            }
+
+            lastPeak = peak;
+
+
+        }
+    }
 }

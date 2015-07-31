@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
+
+import TreeQWOP.OptionsHolder.treeStacking;
 //Note: periodic solutions with noise.
 public class ExhaustiveQwop {
 
@@ -30,6 +32,7 @@ public class ExhaustiveQwop {
 	//This is for making different stacks of trees.
 	private int visOffsetX = 0;
 	private int visOffsetY = 0;
+	public float visOffsetTh = 0;
 	
 	public CopyOnWriteArrayList<TreeHandle> trees; //Thread safe version of ArrayList to hopefully prevent concurrentmodification exceptions.
 	
@@ -90,22 +93,29 @@ public class ExhaustiveQwop {
 		
 		//Create the root node.
 		RootNode =  new TrialNode(tp);
+
 		
-		if (trees.size()>0){
 			//Time to begin a new row.
-			if(trees.size()%(OptionsHolder.treesPerRow*OptionsHolder.treesPerStack)==0){
-				visOffsetX = 0;
-				visOffsetY -= OptionsHolder.treeSpacing;
-				tp.TreeLevel = 0;
-				RootNode.height = 0;
-			}else if (trees.size()%OptionsHolder.treesPerStack == 0){
-				visOffsetX += OptionsHolder.treeSpacing;
-				visOffsetY += 0;
-				tp.TreeLevel = 0;
-				RootNode.height = 0;
+		if(OptionsHolder.stacktype == treeStacking.rectangle){ //make a box out of all the trees
+			if (trees.size()>0){
+				if(trees.size()%(OptionsHolder.treesPerRow*OptionsHolder.treesPerStack)==0){
+					visOffsetX = 0;
+					visOffsetY -= OptionsHolder.treeSpacing;
+					tp.TreeLevel = 0;
+					RootNode.height = 0;
+				}else if (trees.size()%OptionsHolder.treesPerStack == 0){
+					visOffsetX += OptionsHolder.treeSpacing;
+					visOffsetY += 0;
+					tp.TreeLevel = 0;
+					RootNode.height = 0;
+				}
 			}
+		}else if(OptionsHolder.stacktype == treeStacking.spiral){ //turn them into a spiral instad
+			visOffsetTh += OptionsHolder.anglebetween;	
+			visOffsetX = (int) (OptionsHolder.stackingradius*(Math.cos(visOffsetTh)));
+			visOffsetY = (int) (OptionsHolder.stackingradius*(Math.sin(visOffsetTh))); //(1.+trees.size()/10.) for spirals
 		}
-		
+
 		if (trees.size()>OptionsHolder.viewAtOnce){
 			if(!OptionsHolder.displayStackTops || (trees.size()-OptionsHolder.viewAtOnce)%OptionsHolder.treesPerStack != 0){
 				trees.get((trees.size() - OptionsHolder.viewAtOnce-1)).displayOn = false;
@@ -142,9 +152,9 @@ public class ExhaustiveQwop {
 		QWOPHandler.NewGame(OptionsHolder.visOn); //Get a new game going.
 //		RootNode.CaptureState(QWOPHandler);
 		int[] oldActions = {};
-		int[] bufferNew = new int[5000]; //plenty big for storing new values since last fall.
+		int[] bufferNew = new int[10000]; //plenty big for storing new values since last fall.
 		Arrays.fill(bufferNew, -1);
-		int newGoodActions = 0;
+		int newGoodActions;
 		
 		StateHolder BeginningState = new StateHolder(QWOPHandler);
 		StateHolder EndState = new StateHolder(QWOPHandler);
@@ -157,7 +167,7 @@ public class ExhaustiveQwop {
 		TrialNode currentRoot = RootNode;
 		ArrayList<NodeScorer> potentialPaths = new ArrayList<NodeScorer>();
 		int sampleCount = 0; //used for counting stochastic depth search version.
-		int tempcounter = 0;
+		int endptcounter = 0;
 		
 		VisRoot.RunMaker.RunPanel.periodicLength = tp.periodicLength; // Also very hackish way of making the text formatting correct. the formatter must know prefix and periodic lengths.
 		VisRoot.RunMaker.RunPanel.prefixLength = tp.prefixLength;
@@ -166,9 +176,15 @@ public class ExhaustiveQwop {
 		VisRoot.SnapshotMaker.SnapshotPanel.prefixLength = tp.prefixLength;
 		VisRoot.SnapshotMaker.SnapshotPanel.periodicLength = tp.periodicLength;
 		
-		while (tempcounter<3000){//!finished){
-tempcounter++;
-			
+		while (endptcounter<tp.maxpertree){//!finished){
+			endptcounter++;
+			newGoodActions = 0;
+			Arrays.fill(bufferNew, 0);
+			while(VisRoot.TreeMaker.pause){
+				idleGraphics(100);
+			}
+
+
 			//NOTE TO SELF -- NOW ADD SOMETHING WHICH SHIFts US DOWN THE TREE ONE SPOT AND MAKES THAT THE ROOT.
 			/* If last time we failed, figure out the last good point we want to explore from and come up with the sequence of actions to get there */
 
@@ -374,7 +390,11 @@ tempcounter++;
 					TrialNode selectedEnd;
 					int sampleLimit = tp.sampleCount-(currentRoot.TreeDepth*4);
 					if (sampleLimit<10) sampleLimit = 10; //Ensure that we always sample at least 10 before moving on.
+					if(sampleCount>=sampleLimit && OptionsHolder.pauseWithAdvance){
+						VisRoot.TreeMaker.pause = true;
+					}
 					if(sampleCount>sampleLimit || currentRoot.FullyExplored){
+						
 						currentRootDepth = (currentRootDepth+tp.forwardJump);
 						sampleCount = 0;
 						ArrayList<NodeScorer> topfew = nodeRankHolder.getFilteredTopX(currentRoot,20);
@@ -403,6 +423,35 @@ tempcounter++;
 									}
 								}
 							}
+							//if the user has selected one tree to focus on and eliminate the others.
+							if(VisRoot.TreeMaker.TreePanel.trimMultiFlag){
+								VisRoot.TreeMaker.TreePanel.trimMultiFlag = false;
+								System.out.println("tried");
+								//EXPERIMENTAL -- User eliminates all but this multi tree using the k key.
+								TrialNode testedNode = VisRoot.TreeMaker.TreePanel.trimMultiNode;
+								boolean done = false;
+								//find the node in the potential paths list which is the closest ancestor of the sselected node.
+								for (int k = 0; k< VisRoot.TreeMaker.TreePanel.trimMultiNode.TreeDepth; k++){
+									for(NodeScorer ns: potentialPaths){
+										//if we've found it, then trim out all the additional 
+										if(ns.getNode() == testedNode){
+											NodeScorer goodOne = ns;
+											potentialPaths.clear();
+											potentialPaths.add(goodOne);
+											done = true;
+											System.out.println("removed");
+											break;
+										
+										}
+									}
+									if(done){
+										break;
+									}else{
+										testedNode = testedNode.ParentNode;
+									}
+								}
+								
+							}
 							//Trim down the potentialPaths here
 							if(tp.trimSimilar){
 							for (int j = 0; j<potentialPaths.size()-1; j++){
@@ -421,7 +470,7 @@ tempcounter++;
 									
 									//If the two match to 50% of the longer string, then eliminate one.
 									if(matchCount > 0.5*(set1.length>set2.length ? set1.length : set2.length)){
-										System.out.println("eliminated 1");
+//										System.out.println("eliminated 1");
 										if(potentialPaths.get(j).totalScore()>potentialPaths.get(k).totalScore()){
 											potentialPaths.get(k).getNode().colorOverride = Color.BLACK;
 											potentialPaths.remove(k);
@@ -502,10 +551,15 @@ tempcounter++;
 
 						VisRoot.TreeMaker.OverrideNode.ColorChildren(Color.RED);
 						//Once we've exhausted our options, set back to root node and turn off this search option in the treemaker.
-						CurrentNode = currentRoot;
-						if(CurrentNode.FullyExplored || CurrentNode.DeadEnd){
-							VisRoot.TreeMaker.OverrideNode.ColorChildren(Color.BLACK);
+						if(!currentRoot.equals(VisRoot.TreeMaker.OverrideNode)){
+							CurrentNode = VisRoot.TreeMaker.OverrideNode;
+						}else{
+							CurrentNode = currentRoot;
+						}
 						
+						if(CurrentNode.FullyExplored || CurrentNode.DeadEnd){
+							CurrentNode = RootNode;
+							VisRoot.TreeMaker.OverrideNode.ColorChildren(Color.BLACK);
 						}
 				}else if(tp.marchUp){
 					//This method marches BACK UP the tree until we find an unexplored node to try.
@@ -550,6 +604,7 @@ tempcounter++;
 		if (verbose) report += ". Search space reduced to: " + searchspace; System.out.println(report);
 	}
 	
+	/** Enter the end state where you can inspect graphics but no more tree expansion will occur **/
 	public void idleGraphics(){
 		while(true){
 		Every8.Iterate();
@@ -563,6 +618,22 @@ tempcounter++;
 		}
 	}
 	
+	/** Enter the end state where you can inspect graphics but no more tree expansion will occur for the specified milliseconds. **/
+	public void idleGraphics(long millis){
+		
+		while(millis>0){
+		Every8.Iterate();
+		EveryEnd.Iterate();
+		try {
+			Thread.sleep(5);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		millis -= 5;
+		}
+	}
+	
 	/** Get the list of trees we've made **/
 	public CopyOnWriteArrayList<TreeHandle> getTrees(){
 		return trees;
@@ -570,13 +641,6 @@ tempcounter++;
 	
 	//Generate a random integer between two values, inclusive.
 	public static int randInt(int min, int max) {
-
-	    // NOTE: Usually this should be a field rather than a method
-	    // variable so that it is not re-seeded every call.
-	    
-
-	    // nextInt is normally exclusive of the top value,
-	    // so add 1 to make it inclusive
 	    int randomNum = rand.nextInt((max - min) + 1) + min;
 
 	    return randomNum;

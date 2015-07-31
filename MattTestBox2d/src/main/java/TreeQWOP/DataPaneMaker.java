@@ -63,11 +63,7 @@ public class DataPaneMaker implements Schedulable, ActionListener, TabbedPaneAct
         chartPanel.addChartMouseListener(this);
 
         this.DataPane = chartPanel;
-        //chartPanel.setVerticalAxisTrace(true);
-        //chartPanel.setHorizontalAxisTrace(true);
-        // popup menu conflicts with axis trace
         
-
         //Use the reflected fields in DataGrabber to make "" vs "" labels for the drop down menu.
         String[] PlotLabels = new String[data.getSeriesCount()];
         for (int i = 0; i<data.getSeriesCount(); i++){
@@ -116,7 +112,6 @@ public class DataPaneMaker implements Schedulable, ActionListener, TabbedPaneAct
         plot.setRenderer(renderer);
         //Change markersize
         renderer.setSeriesShape( 0, new Rectangle2D.Double( -2.0, -2.0, 4.0, 4.0 ) );
-//        renderer.setSeriesOutlinePaint(0, Color.black);
         renderer.setUseOutlinePaint(false);
 
         domainAxis = (NumberAxis) plot.getDomainAxis();

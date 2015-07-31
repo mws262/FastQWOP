@@ -9,8 +9,8 @@ import javax.vecmath.Matrix3f;
 import javax.vecmath.Vector3f;
 
 /** 
- * Handle all camera motion including smooth motions, click-to-coordinate mapping, etc
- * 
+ * Handle all camera motion including smooth motions, click-to-coordinate mapping, etc.
+ * Update should be called in every graphics draw.
  * @author Matt
  *
  */
@@ -310,7 +310,11 @@ public class CamManager {
 		Vector3f target = new Vector3f();
 		target = (Vector3f)tarpos.clone();
 		
-		
+		//if we move absolutely, then remove all previously queued camera translations
+		targetIncrement.clear();
+		targetSteps.clear();
+		eyeIncrement.clear();
+		eyeSteps.clear();
 		
 		//Find the difference between where we are and where we want to go.
 		eye.sub(eyePos);

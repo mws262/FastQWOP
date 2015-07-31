@@ -1,3 +1,5 @@
+
+
 package TreeQWOP;
 /**
  * Simple way to hold a range of font sizes and interpolate based on a min, max, and given value.
@@ -8,7 +10,7 @@ package TreeQWOP;
 
 import java.awt.Font;
 
-
+@Deprecated
 public class FontScaler {
 
 	/** List which holds a bunch of fonts in evenly increasing font sizes **/

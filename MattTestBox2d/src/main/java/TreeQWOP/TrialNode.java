@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
+import TreeQWOP.QWOPInterface.stanceType;
+
 
 public class TrialNode {
 	
@@ -68,6 +70,14 @@ public class TrialNode {
 	
 	/** Random number generator for new node selection **/
 	private static Random randgen = new Random();
+	
+	/** How many phys steps of each stance type did we have when executing the action getting to this node? **/
+	public int doubleCount;
+	public int singleCount;
+	public int flightCount;
+	
+	/** Sum of body height since last node. May wish to try and minimize this. **/
+	public float sumBodyHeight = 0;
 	
 	/** Parameters for visualizing the tree **/
 	public float[] nodeLocation = new float[2]; //Location that this node appears on the tree visualization
@@ -137,7 +147,7 @@ public class TrialNode {
 //			System.out.println("periodic: " + OurPeriodicChoice[NodeSequence - 1 - periodic - prefix]);
 //			System.out.println("deviation: " + DeviationsList[NodeSequence - 1 - periodic - prefix][ControlIndex]);
 		}else{
-//			System.out.println("bug" + ParentNode.NodeSequence);
+			
 			NodeSequence = (ParentAction.NodeSequence%tp.ActionList.length) + 1;
 			int NodeSequenceNext = ((ParentAction.NodeSequence + 1)%tp.ActionList.length) + 1; //next action might wrap around.
 			
@@ -495,6 +505,10 @@ public class TrialNode {
 	public void CaptureState(QWOPInterface QWOPHandler){
 		NodeState = new StateHolder(QWOPHandler);
 		NodeState.CaptureState();
+		flightCount = QWOPHandler.flightCount;
+		singleCount = QWOPHandler.singleCount;
+		doubleCount = QWOPHandler.doubleCount;
+		sumBodyHeight = QWOPHandler.sumBodyHeight;
 	}
 	
 	/** Get the sequence of actions up to, and including this node **/
