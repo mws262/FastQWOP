@@ -51,6 +51,13 @@ public class QWOPInterface {
 	public boolean O = false;
 	public boolean P = false;
 	
+	/** The fixed sequence of QWOP to be cycled through **/
+	public boolean[][] seq = {
+		{false,false,false,false},
+		{false,true,true,false},
+		{false,false,false,false},
+		{true,false,false,true}}; 
+	public ControlSequence sequence = new ControlSequence(seq);
 	
 	/** Type of stance that occurs when executing the action of this node. I'm using this to try to eliminate double stance and very long flight phases. **/
 	public enum stanceType{
@@ -84,7 +91,7 @@ public class QWOPInterface {
 		Arrays.fill(currentSequence, 0);
 		stepsInRun = 0;
 		failFlag = false; //Reset from previous failures.
-
+		sequence.reset();
 		m_world.setContactListener(new CollisionListener(game,this));
 	}
 	
@@ -173,144 +180,179 @@ public class QWOPInterface {
 	/* Do one action (delay). Action order is defined here, the actual delay is externally input. Returns the cost.*/
 	public float NextAction(int delay) throws InterruptedException{
 		
-		
-		
 		//Reset stance counters per action
 		doubleCount = 0;
 		singleCount = 0;
 		flightCount = 0;
 		sumBodyHeight = 0;
 		
-		//Select an action:
-		switch (sequencePosition) { 
-		
-		case 1: //Start with a pause
-			Q = false;
-			W = false;
-			O = false;
-			P = false;
-
-			for (int j = 0; j<delay; j++){
-				game.everyStep(false,false, false, false);
-				m_world.step(timestep, veliterations, positerations);
-				if(failFlag){
-					break;
-				}
-				if (StepSched != null){
-					StepSched.Iterate();
-				}
-				//Track what stance state it's in.
-				switch(currentStance){
-				case doubleStance:
-					doubleCount++;
-					break;
-				case singleStance:
-					singleCount++;
-					break;
-				case flightPhase:
-					flightCount++;
-					break;
-				default:
-					break;
-				}
-				sumBodyHeight += game.TorsoBody.getPosition().y;
+		boolean[] action = sequence.getNext();
+//		System.out.println(action[0] + "," + action[1] + "," + action[2] + "," + action[3]);
+		Q = action[0];
+		W = action[1];
+		O = action[2];
+		P = action[3];
+		for (int j = 0; j<delay; j++){
+			game.everyStep(action[0],action[1],action[2],action[3]);
+			m_world.step(timestep, veliterations, positerations);
+			if(failFlag){
+				break;
 			}
-			break;
-		case 2: // W-O keys down
-
-			Q = false;
-			W = true;
-			O = true;
-			P = false;
-			for (int j = 0; j<delay; j++){
-				game.everyStep(false,true, true, false);
-				m_world.step(timestep, veliterations, positerations);
-				if(failFlag){
-					break;
-				}
-				if (StepSched != null){
-					StepSched.Iterate();
-				}
-				//Track what stance state it's in.
-				switch(currentStance){
-				case doubleStance:
-					doubleCount++;
-					break;
-				case singleStance:
-					singleCount++;
-					break;
-				case flightPhase:
-					flightCount++;
-					break;
-				default:
-					break;
-				}
-				sumBodyHeight += game.TorsoBody.getPosition().y;
+			if (StepSched != null){
+				StepSched.Iterate();
 			}
-			break;
-		case 3: //Another pause.
-
-			Q = false;
-			W = false;
-			O = false;
-			P = false;
-			for (int j = 0; j<delay; j++){
-				game.everyStep(false,false, false, false);
-				m_world.step(timestep, veliterations, positerations);
-				if(failFlag){
-					break;
-				}
-				if (StepSched != null){
-					StepSched.Iterate();
-				}
-				//Track what stance state it's in.
-				switch(currentStance){
-				case doubleStance:
-					doubleCount++;
-					break;
-				case singleStance:
-					singleCount++;
-					break;
-				case flightPhase:
-					flightCount++;
-					break;
-				}
-				sumBodyHeight += game.TorsoBody.getPosition().y;
+			//Track what stance state it's in.
+			switch(currentStance){
+			case doubleStance:
+				doubleCount++;
+				break;
+			case singleStance:
+				singleCount++;
+				break;
+			case flightPhase:
+				flightCount++;
+				break;
+			default:
+				break;
 			}
-			break;
-		case 4: // Q-P keys down.
-
-			Q = true;
-			W = false;
-			O = false;
-			P = true;
-			for (int j = 0; j<delay; j++){
-				game.everyStep(true,false, false, true);
-				m_world.step(timestep, veliterations, positerations);
-				if(failFlag){
-					break;
-				}
-				if (StepSched != null){
-					StepSched.Iterate();
-				}
-				//Track what stance state it's in.
-				switch(currentStance){
-				case doubleStance:
-					doubleCount++;
-					break;
-				case singleStance:
-					singleCount++;
-					break;
-				case flightPhase:
-					flightCount++;
-					break;
-				}
-				sumBodyHeight += game.TorsoBody.getPosition().y;
-			}
-			break;
-		default:
-			throw new RuntimeException("Tried to do an undefined step sequence action.");
+			sumBodyHeight += game.TorsoBody.getPosition().y;
 		}
+		
+		
+		
+		
+//
+//		
+//		//Select an action:
+//		switch (sequencePosition) { 
+//		
+//		case 1: //Start with a pause
+//			Q = false;
+//			W = false;
+//			O = false;
+//			P = false;
+//
+//			for (int j = 0; j<delay; j++){
+//				game.everyStep(false,false, false, false);
+//				m_world.step(timestep, veliterations, positerations);
+//				if(failFlag){
+//					break;
+//				}
+//				if (StepSched != null){
+//					StepSched.Iterate();
+//				}
+//				//Track what stance state it's in.
+//				switch(currentStance){
+//				case doubleStance:
+//					doubleCount++;
+//					break;
+//				case singleStance:
+//					singleCount++;
+//					break;
+//				case flightPhase:
+//					flightCount++;
+//					break;
+//				default:
+//					break;
+//				}
+//				sumBodyHeight += game.TorsoBody.getPosition().y;
+//			}
+//			break;
+//		case 2: // W-O keys down
+//
+//			Q = false;
+//			W = true;
+//			O = true;
+//			P = false;
+//			for (int j = 0; j<delay; j++){
+//				game.everyStep(false,true, true, false);
+//				m_world.step(timestep, veliterations, positerations);
+//				if(failFlag){
+//					break;
+//				}
+//				if (StepSched != null){
+//					StepSched.Iterate();
+//				}
+//				//Track what stance state it's in.
+//				switch(currentStance){
+//				case doubleStance:
+//					doubleCount++;
+//					break;
+//				case singleStance:
+//					singleCount++;
+//					break;
+//				case flightPhase:
+//					flightCount++;
+//					break;
+//				default:
+//					break;
+//				}
+//				sumBodyHeight += game.TorsoBody.getPosition().y;
+//			}
+//			break;
+//		case 3: //Another pause.
+//
+//			Q = false;
+//			W = false;
+//			O = false;
+//			P = false;
+//			for (int j = 0; j<delay; j++){
+//				game.everyStep(false,false, false, false);
+//				m_world.step(timestep, veliterations, positerations);
+//				if(failFlag){
+//					break;
+//				}
+//				if (StepSched != null){
+//					StepSched.Iterate();
+//				}
+//				//Track what stance state it's in.
+//				switch(currentStance){
+//				case doubleStance:
+//					doubleCount++;
+//					break;
+//				case singleStance:
+//					singleCount++;
+//					break;
+//				case flightPhase:
+//					flightCount++;
+//					break;
+//				}
+//				sumBodyHeight += game.TorsoBody.getPosition().y;
+//			}
+//			break;
+//		case 4: // Q-P keys down.
+//
+//			Q = true;
+//			W = false;
+//			O = false;
+//			P = true;
+//			for (int j = 0; j<delay; j++){
+//				game.everyStep(true,false, false, true);
+//				m_world.step(timestep, veliterations, positerations);
+//				if(failFlag){
+//					break;
+//				}
+//				if (StepSched != null){
+//					StepSched.Iterate();
+//				}
+//				//Track what stance state it's in.
+//				switch(currentStance){
+//				case doubleStance:
+//					doubleCount++;
+//					break;
+//				case singleStance:
+//					singleCount++;
+//					break;
+//				case flightPhase:
+//					flightCount++;
+//					break;
+//				}
+//				sumBodyHeight += game.TorsoBody.getPosition().y;
+//			}
+//			break;
+//		default:
+//			throw new RuntimeException("Tried to do an undefined step sequence action.");
+//		}
 //		System.out.println(stanceDuringAction.toString());
 		//Increment us to the next action in the sequence:
 		sequencePosition = (sequencePosition)%periodicLength + 1;

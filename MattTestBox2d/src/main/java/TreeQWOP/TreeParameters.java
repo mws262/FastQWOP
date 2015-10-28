@@ -76,6 +76,13 @@ public class TreeParameters {
 		public boolean goDeviations = false;
 		/** When we get to the end of the selection sequence, do we start picking again from the "periodic" portion (as opposed to looping back to choice 1. **/
 		public boolean repeatSelectionInPeriodic = true; //DO NOT HAVE BOTH THIS AND GODEVIATIONS AT THE SAME TIME.
+		/** The fixed sequence of QWOP to be cycled through **/
+		public boolean[][] seq = {
+			{false,false,false,false},
+			{false,true,false,true},
+			{false,false,false,false},
+			{true,false,true,false}}; 
+		public ControlSequence sequence = new ControlSequence(seq);
 		
 		/** Repeat actions to attempt periodic motion? **/
 //		public boolean goPeriodic = true;

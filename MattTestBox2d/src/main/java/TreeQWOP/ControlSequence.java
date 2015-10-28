@@ -42,7 +42,10 @@ public class ControlSequence {
 	public int getActionCount(){
 		return totalActions;
 	}
-	
+	/** Reset to fresh sequence. **/
+	public void reset(){
+		phase = -1;
+	}
 	
 
 }
