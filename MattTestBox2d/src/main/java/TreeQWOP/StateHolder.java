@@ -54,6 +54,20 @@ public class StateHolder {
 	public float[] LLArmState = new float[3];
 	public static float LLArmWeight = 1;
 	
+	//Joint states -- theta, thetadot
+	
+	public float[] NeckJ = new float[2];
+	public float[] RShoulderJ = new float[2];
+	public float[] LShoulderJ = new float[2];
+	public float[] RElbowJ = new float[2];
+	public float[] LElbowJ = new float[2];
+	public float[] RHipJ = new float[2];
+	public float[] LHipJ = new float[2];
+	public float[] RKneeJ = new float[2];
+	public float[] LKneeJ = new float[2];
+	public float[] RAnkleJ = new float[2];
+	public float[] LAnkleJ = new float[2];
+	
 	//All the links in the body in one list:
 	public float[][] AllLinks = {TorsoState,HeadState,RFootState,LFootState,RCalfState,LCalfState,RThighState,LThighState,RUArmState,LUArmState,RLArmState,LLArmState};
 	
@@ -93,7 +107,40 @@ public class StateHolder {
 	/** Grab a snapshot of the game's state and store it in this object **/
 	public void CaptureState(){
 		
+		//Do joint angles, rates:
+		NeckJ[0] = gameInterface.game.NeckJ.getJointAngle();
+		NeckJ[1] = gameInterface.game.NeckJ.getJointSpeed();
+		
+		RShoulderJ[0] = gameInterface.game.RShoulderJ.getJointAngle();
+		RShoulderJ[1] = gameInterface.game.RShoulderJ.getJointSpeed();
+		
+		LShoulderJ[0] = gameInterface.game.LShoulderJ.getJointAngle();
+		LShoulderJ[1] = gameInterface.game.LShoulderJ.getJointSpeed();
+		
+		RElbowJ[0] = gameInterface.game.RElbowJ.getJointAngle();
+		RElbowJ[1] = gameInterface.game.RElbowJ.getJointSpeed();
+		
+		LElbowJ[0] = gameInterface.game.LElbowJ.getJointAngle();
+		LElbowJ[1] = gameInterface.game.LElbowJ.getJointSpeed();
+		
+		RHipJ[0] = gameInterface.game.RHipJ.getJointAngle();
+		RHipJ[1] = gameInterface.game.RHipJ.getJointSpeed();
+		
+		LHipJ[0] = gameInterface.game.LHipJ.getJointAngle();
+		LHipJ[1] = gameInterface.game.LHipJ.getJointSpeed();
 
+		RKneeJ[0] = gameInterface.game.RKneeJ.getJointAngle();
+		RKneeJ[1] = gameInterface.game.RKneeJ.getJointSpeed();
+		
+		LKneeJ[0] = gameInterface.game.LKneeJ.getJointAngle();
+		LKneeJ[1] = gameInterface.game.LKneeJ.getJointSpeed();
+		
+		RAnkleJ[0] = gameInterface.game.RAnkleJ.getJointAngle();
+		RAnkleJ[1] = gameInterface.game.RAnkleJ.getJointSpeed();
+		
+		LAnkleJ[0] = gameInterface.game.LAnkleJ.getJointAngle();
+		LAnkleJ[1] = gameInterface.game.LAnkleJ.getJointSpeed();
+		
 		//Get torso state:
 		TorsoState[0] = gameInterface.game.TorsoBody.getPosition().x;
 		TorsoState[1] = gameInterface.game.TorsoBody.getPosition().y;
