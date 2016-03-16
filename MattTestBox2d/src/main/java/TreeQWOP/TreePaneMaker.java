@@ -81,7 +81,8 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	  public CopyOnWriteArrayList<TreeHandle> trees = new CopyOnWriteArrayList<TreeHandle>();
 	  public TreeHandle activeTree;
 	  private SnapshotPaneMaker SnapshotPane;
-	  
+	  private DataExportPaneMaker ExportPane;
+
 	  /** Min and max scaling of end costs -- gotten by taking 2.5 std devs out on either side of the mean final costs **/
 	  public float minDistScaling = 0;
 	  public float maxDistScaling = 0;
@@ -189,6 +190,11 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 	/** Have a reference to the runner snapshot pane, so we can pass new focus nodes to it. **/
     public void setSnapshotPane(SnapshotPaneMaker snap){
   	  SnapshotPane = snap;
+    }
+    
+	/** Have a reference to the data export pane, so we can pass new focus nodes to it. **/
+    public void setExportPane(DataExportPaneMaker ExportPaneMaker){
+  	  this.ExportPane = ExportPaneMaker;
     }
  
 	
@@ -466,6 +472,9 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
     		  if(pathView != null){
     			  pathView.AddQueuedTrial(focusedNode);
     		  }
+    		  if (ExportPane != null){
+    			  ExportPane.setNode(focusedNode);
+    		  }
 
     	  }
       }
@@ -588,6 +597,9 @@ public class TreePaneMaker implements Schedulable, TabbedPaneActivator{
 			if(SnapshotPane != null){
 				SnapshotPane.setNode(focusedNode);
 				SnapshotPane.update();
+			}
+			if(ExportPane != null){
+				ExportPane.setNode(focusedNode);
 			}
 			repaint();
 		}
