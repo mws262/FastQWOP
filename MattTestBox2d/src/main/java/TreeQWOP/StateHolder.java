@@ -6,6 +6,7 @@ import org.jbox2d.collision.shapes.PolygonShape;
 import org.jbox2d.collision.shapes.CircleShape;
 import org.jbox2d.collision.shapes.Shape;
 import org.jbox2d.common.Transform;
+import org.jbox2d.common.Vec2;
 
 /**
  * This object can hold a QWOPGame's state at a snapshot.
@@ -68,6 +69,8 @@ public class StateHolder {
 	public float[] RAnkleJ = new float[2];
 	public float[] LAnkleJ = new float[2];
 	
+	public Vec2 RHipJPos = new Vec2(0,0); // Where is the hip in world coordinates (right hip joint on the torso)
+	
 	//All the links in the body in one list:
 	public float[][] AllLinks = {TorsoState,HeadState,RFootState,LFootState,RCalfState,LCalfState,RThighState,LThighState,RUArmState,LUArmState,RLArmState,LLArmState};
 	
@@ -106,7 +109,7 @@ public class StateHolder {
 
 	/** Grab a snapshot of the game's state and store it in this object **/
 	public void CaptureState(){
-		
+	
 		//Do joint angles, rates:
 		NeckJ[0] = gameInterface.game.NeckJ.getJointAngle();
 		NeckJ[1] = gameInterface.game.NeckJ.getJointSpeed();
@@ -140,6 +143,8 @@ public class StateHolder {
 		
 		LAnkleJ[0] = gameInterface.game.LAnkleJ.getJointAngle();
 		LAnkleJ[1] = gameInterface.game.LAnkleJ.getJointSpeed();
+		
+		gameInterface.game.RHipJ.getAnchorB(RHipJPos);
 		
 		//Get torso state:
 		TorsoState[0] = gameInterface.game.TorsoBody.getPosition().x;

@@ -25,12 +25,15 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	RunnerPaneMaker RunMaker;
 	SnapshotPaneMaker SnapshotMaker;
 	TreePaneMaker SelectTreeMaker;
+	DataExportPaneMaker ExportMaker;
 	
 	JPanel DataPane;
 	GLJPanel TreePane;
 	JPanel RunPane;
 	JPanel SnapshotPane;
 	JPanel SelectTreePane;
+	JPanel ExportPane;
+	
 	
 	
 	JTabbedPane DataTabs;
@@ -76,11 +79,17 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	    this.SnapshotPane = SnapshotMaker.SnapshotPanel;
 	    DataTabs.addTab("State Viewer", SnapshotPane);
 	    
+	    /* DATA EXPORT PANE */
+	    ExportMaker = new DataExportPaneMaker();
+	    this.ExportPane = ExportMaker.ExportPane;
+	    DataTabs.addTab("Data Export", ExportPane);
+	    
 	    //Handle listening to tab changes. Disable any updates on inactive tabs.
 	    TabPanes.add(SelectTreeMaker);
 	    TabPanes.add(DataMaker);
 	    TabPanes.add(RunMaker);
 	    TabPanes.add(SnapshotMaker);
+	    TabPanes.add(ExportMaker);
 
 	    DataTabs.addChangeListener(this);
 	    

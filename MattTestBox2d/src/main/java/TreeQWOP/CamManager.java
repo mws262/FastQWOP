@@ -348,7 +348,7 @@ public class CamManager {
 		targetSteps.add(speed);
 	}
 	
-	/**User interaction to rotate the camera latitude-ishly. Magnitude of rotation is in radians and may be negative.**/
+	/** User interaction to rotate the camera latitude-ishly. Magnitude of rotation is in radians and may be negative. **/
 	public void rotateLatitude(float magnitude){
 		
 		//Vector from target to eye:
