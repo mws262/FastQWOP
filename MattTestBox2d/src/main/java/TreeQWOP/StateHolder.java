@@ -70,6 +70,7 @@ public class StateHolder {
 	public float[] LAnkleJ = new float[2];
 	
 	public Vec2 RHipJPos = new Vec2(0,0); // Where is the hip in world coordinates (right hip joint on the torso)
+	public Vec2 RHipJVel = new Vec2(0,0); // Where is the hip in world coordinates (right hip joint on the torso)
 	
 	//All the links in the body in one list:
 	public float[][] AllLinks = {TorsoState,HeadState,RFootState,LFootState,RCalfState,LCalfState,RThighState,LThighState,RUArmState,LUArmState,RLArmState,LLArmState};
@@ -145,6 +146,7 @@ public class StateHolder {
 		LAnkleJ[1] = gameInterface.game.LAnkleJ.getJointSpeed();
 		
 		gameInterface.game.RHipJ.getAnchorB(RHipJPos);
+		RHipJVel = gameInterface.game.TorsoBody.getLinearVelocityFromLocalPoint(gameInterface.game.RHipJDef.localAnchorB);
 		
 		//Get torso state:
 		TorsoState[0] = gameInterface.game.TorsoBody.getPosition().x;
@@ -280,4 +282,53 @@ public class StateHolder {
 		}
 		return error;
 	}	
+	
+	
+	
+	/* Get a string of the state values for printing to data files, etc. */
+	public String stateToString(){
+		String stateString = "";
+		
+		stateString += String.valueOf(NeckJ[0]) + ", ";
+		stateString += String.valueOf(NeckJ[1]) + ", ";
+		
+		stateString += String.valueOf(RShoulderJ[0]) + ", ";
+		stateString += String.valueOf(RShoulderJ[1]) + ", ";
+		
+		stateString += String.valueOf(LShoulderJ[0]) + ", ";
+		stateString += String.valueOf(LShoulderJ[1]) + ", ";
+		
+		stateString += String.valueOf(RElbowJ[0]) + ", ";
+		stateString += String.valueOf(RElbowJ[1]) + ", ";
+		
+		stateString += String.valueOf(LElbowJ[0]) + ", ";
+		stateString += String.valueOf(LElbowJ[1]) + ", ";
+		
+		stateString += String.valueOf(RHipJ[0]) + ", ";
+		stateString += String.valueOf(RHipJ[1]) + ", ";
+		
+		stateString += String.valueOf(LHipJ[0]) + ", ";
+		stateString += String.valueOf(LHipJ[1]) + ", ";
+		
+		stateString += String.valueOf(RKneeJ[0]) + ", ";
+		stateString += String.valueOf(RKneeJ[1]) + ", ";
+		
+		stateString += String.valueOf(LKneeJ[0]) + ", ";
+		stateString += String.valueOf(LKneeJ[1]) + ", ";
+		
+		stateString += String.valueOf(RAnkleJ[0]) + ", ";
+		stateString += String.valueOf(RAnkleJ[1]) + ", ";
+		
+		stateString += String.valueOf(LAnkleJ[0]) + ", ";
+		stateString += String.valueOf(LAnkleJ[1]) + ", ";
+		
+		stateString += String.valueOf(RHipJPos.x) + ", ";
+		stateString += String.valueOf(RHipJVel.x) + ", ";
+		
+		stateString += String.valueOf(RHipJPos.y) + ", ";
+		stateString += String.valueOf(RHipJVel.y) + ", ";
+		
+		return stateString;
+
+	}
 }

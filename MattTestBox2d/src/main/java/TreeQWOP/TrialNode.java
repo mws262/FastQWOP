@@ -523,6 +523,19 @@ public class TrialNode {
 		return sequence;
 		
 	}
+	
+	/** Get the sequence of states up to this node in string form as defined in StateHolder. **/
+	public String[] getStateSequenceString(){
+		String[] sequence = new String[TreeDepth];
+		TrialNode current = this;
+		sequence[TreeDepth-1] = current.NodeState.stateToString();
+		for (int i =TreeDepth-2; i>=0; i--){
+			current = current.ParentNode;
+			sequence[i] = current.NodeState.stateToString();
+		}
+		return sequence;	
+	}
+	
 	/** Return the control action (NOT the index of the control) **/
 	public int EchoControl(){
 		return ControlAction;

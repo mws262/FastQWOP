@@ -127,7 +127,7 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
         this.setVisible(true); 
         RunPane.requestFocus();
         repaint();
-        System.out.println(TreePane.getSize().height+","+TreePane.getSize().width);
+//        System.out.println(TreePane.getSize().height+","+TreePane.getSize().width);
         
 	}
 	
