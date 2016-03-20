@@ -57,7 +57,6 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	    
 	    DataTabs = new JTabbedPane();
 	    DataTabs.setBorder(BorderFactory.createRaisedBevelBorder());
-	    pane.add(DataTabs,DataConstraints);
 	    
 	    /* SUBTREE PANE */
 	    SelectTreeMaker = new TreePaneMaker(trees,true,OptionsHolder.useGLSlave);
@@ -83,6 +82,8 @@ public class VisMaster extends JFrame implements Schedulable, ChangeListener{
 	    ExportMaker = new DataExportPaneMaker();
 	    this.ExportPane = ExportMaker.ExportPane;
 	    DataTabs.addTab("Data Export", ExportPane);
+	    
+	    pane.add(DataTabs,DataConstraints);
 	    
 	    //Handle listening to tab changes. Disable any updates on inactive tabs.
 	    TabPanes.add(SelectTreeMaker);

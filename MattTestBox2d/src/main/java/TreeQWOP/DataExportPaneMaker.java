@@ -1,17 +1,11 @@
 package TreeQWOP;
 
-import java.awt.BorderLayout;
-import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.GridLayout;
-
-import javax.swing.BoxLayout;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
-import javax.swing.JTextField;
 
 public class DataExportPaneMaker implements TabbedPaneActivator {
 
@@ -59,7 +53,7 @@ class DataExportPane extends JPanel {
 
 	
 	public DataExportPane(){
-//		GridLayout layout  = new GridLayout();
+		FlowLayout layout  = new FlowLayout();
 //		this.setMaximumSize(this.getSize());
 		setLayout(null);
 
@@ -69,26 +63,32 @@ class DataExportPane extends JPanel {
 		ControlLabel.setBounds(50,10,600,10);
 		
 		ControlData = new JTextArea("Select a point on the tree to get data here.",2,20);
-		ControlScroll = new JScrollPane(ControlData);
-		this.add(ControlData);
-		this.add(ControlScroll);
+		ControlScroll = new JScrollPane(ControlData,JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
+
+
 		ControlData.setEditable(false);
 		ControlData.setLineWrap(true);
-		ControlData.setBounds(50,25,600,100);
+		ControlData.setBounds(50,25,600,800);
+		ControlScroll.setBounds(50,25,600,100);
 		
 		// Make a text box for state data
 		StateLabel = new JLabel("State data:");
 		this.add(StateLabel);
 		StateLabel.setBounds(50,150,600,10);
 		
-		StateData = new JTextArea("Select a point on the tree to get data here.",2,20);
-		StateScroll = new JScrollPane(StateData);
-		this.add(StateData);
-		this.add(StateScroll);
+		StateData = new JTextArea("Select a point on the tree to get data here.",15,20);
+		StateScroll = new JScrollPane(StateData,JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
 		StateData.setEditable(false);
 		StateData.setLineWrap(true);
-		StateData.setBounds(50,165,600,600);
-		StateData.setFont(new Font(StateData.getFont().getFontName(),Font.PLAIN, 8));
+		StateData.setWrapStyleWord(true);
+		StateData.setBounds(50,165,600,10000);
+		StateScroll.setBounds(50,165,600,600);
+
+		StateData.setFont(new Font(StateData.getFont().getFontName(),Font.PLAIN, 10));
+		
+		this.add(ControlScroll);
+		this.add(StateScroll);
+
 		
 	}
 	
