@@ -2,10 +2,17 @@ package TreeQWOP;
 
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.FileWriter;
+import java.io.IOException;
+
+import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 
 public class DataExportPaneMaker implements TabbedPaneActivator {
 
@@ -40,7 +47,7 @@ public class DataExportPaneMaker implements TabbedPaneActivator {
 	}
 
 }
-class DataExportPane extends JPanel {
+class DataExportPane extends JPanel implements ActionListener{
 	private JTextArea ControlData;
 	private JScrollPane ControlScroll;
 	private JLabel ControlLabel;
@@ -49,7 +56,14 @@ class DataExportPane extends JPanel {
 	private JScrollPane StateScroll;
 	private JLabel StateLabel;
 	
+	
+	private JTextField fileNameField;
+	private JButton saveButton;
+	
 	private TrialNode focusPoint;
+	
+	private int[] controlSequence;
+	private String[] stateSequence;
 
 	
 	public DataExportPane(){
@@ -88,6 +102,18 @@ class DataExportPane extends JPanel {
 		
 		this.add(ControlScroll);
 		this.add(StateScroll);
+		
+		// Make a save-to-csv button
+		saveButton = new JButton("Save to csv");
+		saveButton.setBounds(50,800,100,50);
+		fileNameField = new JTextField();
+		fileNameField.setBounds(170,800,300,50);
+		
+		saveButton.addActionListener(this);
+		
+		
+		this.add(saveButton);
+		this.add(fileNameField);
 
 		
 	}
@@ -97,8 +123,8 @@ class DataExportPane extends JPanel {
 	public void setNode(TrialNode focusPoint){
 		
 		// Get the control sequence up to this point and format it into a CSV-style string.
-		int[] controlSequence = focusPoint.getSequence();
-		String[] stateSequence = focusPoint.getStateSequenceString();
+		controlSequence = focusPoint.getSequence();
+		stateSequence = focusPoint.getStateSequenceString();
 		
 		String formatControlSeq = "";
 		String formatStateSeq = "";
@@ -116,11 +142,34 @@ class DataExportPane extends JPanel {
 		ControlData.setText(formatControlSeq);
 		StateData.setText(formatStateSeq);
 		
+	}
+	
+	/* Write to csv */
+	private void writeToCSV(){
+		try{
+			FileWriter writer = new FileWriter(System.getProperty("user.dir") + "/" + fileNameField.getText() + ".csv");
+			for (int i = 0; i<controlSequence.length; i++){
+				writer.append(String.valueOf(controlSequence[i]));
+				writer.append(",");
+				writer.append(stateSequence[i]);
+				writer.append("\n");
+			}
+			
+		    writer.flush();
+		    writer.close();
+		}catch(IOException e){
+			e.printStackTrace();
+		}
 		
-//		while (currentNode.ParentNode != null){
-//			StateData.append(String.valueOf(currentNode.TreeDepth) + ", ");
-//			currentNode = currentNode.ParentNode;
-//		}
+	}
+
+
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		if(stateSequence != null){
+			writeToCSV();
+		}
+		
 	}
 
 }

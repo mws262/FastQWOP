@@ -19,7 +19,7 @@ import org.jbox2d.common.Vec2;
 public class StateHolder {
 	
 	//Convention will be x,y,theta
-	public float[] TorsoState = new float[3];
+	public float[] TorsoState = new float[4];
 	public static float TorsoWeight = 10;
 	
 	public float[] HeadState = new float[3];
@@ -152,6 +152,7 @@ public class StateHolder {
 		TorsoState[0] = gameInterface.game.TorsoBody.getPosition().x;
 		TorsoState[1] = gameInterface.game.TorsoBody.getPosition().y;
 		TorsoState[2] = gameInterface.game.TorsoBody.getAngle();
+//		TorsoState[3] = gameInterface.game.TorsoBody.getAngularVelocity();
 		CapturedTransforms[0] = new Transform(gameInterface.game.TorsoBody.getTransform());
 		
 		//Get head state:
@@ -327,6 +328,9 @@ public class StateHolder {
 		
 		stateString += String.valueOf(RHipJPos.y) + ", ";
 		stateString += String.valueOf(RHipJVel.y) + ", ";
+		
+		stateString += String.valueOf(TorsoState[2]) + ", ";
+		stateString += String.valueOf(TorsoState[3]) + ", ";
 		
 		return stateString;
 
